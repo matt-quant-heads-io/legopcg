@@ -20,7 +20,7 @@ There are two major links. First is using models to generate .DAT and .mpd files
 
 The second link is around rendering. Currently rendering is manual (using LeoCAD to render via manually point the program to the generated .DAT file). However, we will definitely want to create an automated mechanism for doing this. I see a couple of different options for doing this.
 
-1. Take an open source renderer (for example https://github.com/tcobbs/ldview), rip out the guts, and create a CLI out of it that can be called by our framework (framework will supply the path to the .DAT file as a command line arg). This is probably the best option.
+1. Take an open source renderer (for example from https://github.com/HazenBabcock/opensdraw, https://github.com/tcobbs/ldview), rip out the guts, and create a CLI out of it that can be called by our framework (framework will supply the path to the .DAT file as a command line arg). This is probably the best option.
 2. Using https://github.com/Zulko/vapory which is a wrapper for POV-RAY. This requires us to write a converter script that takes a .DAT file and converts it into the corresponding python objects and properties. This isn't ideal as it's not trivial.
 
 ## Create a standardized method for generating .DAT / .mpd files
