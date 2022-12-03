@@ -1,85 +1,166 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import os
+import tensorflow as tf
+from tensorflow.keras import layers
+from gym import spaces
+import numpy as np
+from stable_baselines.common.policies import ActorCriticPolicy, FeedForwardPolicy
+from stable_baselines.common.distributions import CategoricalProbabilityDistributionType, ProbabilityDistributionType, CategoricalProbabilityDistribution, ProbabilityDistribution
+from stable_baselines.a2c.utils import conv, linear, conv_to_fc
 
-class Linear_QNet(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super().__init__()
+def Cnn1(image, **kwargs):
+    activ = tf.nn.relu
+    layer_1 = activ(conv(image, 'c1', n_filters=32, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
+    layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
+    layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
+    layer_3 = conv_to_fc(layer_3)
+    return activ(linear(layer_3, 'fc1', n_hidden=512, init_scale=np.sqrt(2)))
 
-        self.linear1 = nn.Linear(input_size, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, output_size)
+def Cnn2(image, **kwargs):
+    activ = tf.nn.relu
+    layer_1 = activ(conv(image, 'c1', n_filters=32, filter_size=3, stride=2, init_scale=np.sqrt(2), **kwargs))
+    layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=3, stride=2, init_scale=np.sqrt(2), **kwargs))
+    layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
+    layer_3 = conv_to_fc(layer_3)
+    return activ(linear(layer_3, 'fc1', n_hidden=512, init_scale=np.sqrt(2)))
 
-    def forward(self, x):
-        x = F.relu(self.linear1(x))
-        x = self.linear2(x)
-        return x
+def FullyConv1(image, n_tools, **kwargs):
+    activ = tf.nn.relu
+    x = activ(conv(image, 'c1', n_filters=32, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c2', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c3', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c4', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c5', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c6', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c7', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c8', n_filters=n_tools, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    act = conv_to_fc(x)
+    val = activ(conv(x, 'v1', n_filters=64, filter_size=3, stride=2,
+        init_scale=np.sqrt(2)))
+    val = activ(conv(val, 'v4', n_filters=64, filter_size=1, stride=1,
+        init_scale=np.sqrt(2)))
+    val = conv_to_fc(val)
+    return act, val
 
-    def save(self, file_name='model.pth'):
-        model_folder_path = './model'
+def FullyConv2(image, n_tools, **kwargs):
+    activ = tf.nn.relu
+    x = activ(conv(image, 'c1', n_filters=32, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c2', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c3', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c4', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c5', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c6', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c7', n_filters=64, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    x = activ(conv(x, 'c8', n_filters=n_tools, filter_size=3, stride=1,
+        pad='SAME', init_scale=np.sqrt(2)))
+    act = conv_to_fc(x)
+    val = activ(conv(x, 'v1', n_filters=64, filter_size=3, stride=2,
+        init_scale=np.sqrt(2)))
+    val = activ(conv(val, 'v2', n_filters=64, filter_size=3, stride=2,
+        init_scale=np.sqrt(3)))
+    val = activ(conv(val, 'v4', n_filters=64, filter_size=1, stride=1,
+        init_scale=np.sqrt(2)))
+    val = conv_to_fc(val)
+    return act, val
 
-        if not os.path.exists(model_folder_path):
-            os.makedirs(model_folder_path)
+class NoDenseCategoricalProbabilityDistributionType(ProbabilityDistributionType):
+    def __init__(self, n_cat):
+        """
+        The probability distribution type for categorical input
 
-        file_name = os.path.join(model_folder_path, file_name)
-        torch.save(self.state_dict(), file_name)
+        :param n_cat: (int) the number of categories
+        """
+        self.n_cat = n_cat
 
-class QTrainer:
-    def __init__(self, model, lr, gamma):
-        self.lr = lr
-        self.gamma = gamma
-        self.model = model
+    def probability_distribution_class(self):
+        return CategoricalProbabilityDistribution
 
-        self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
+    def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0,
+                                       init_bias=0.0):
+        pdparam = pi_latent_vector
+        q_values = vf_latent_vector
+        return self.proba_distribution_from_flat(pdparam), pdparam, q_values
 
-        # Loss Function
-        self.criterion = nn.MSELoss()
+    def param_shape(self):
+        return [self.n_cat]
 
-    # Needs all stored params from last time
-    def train_step(self, state, action, reward, next_state, done):
-        
-        # Convert to tensor
-        state = torch.tensor(state, dtype=torch.float)
-        next_state = torch.tensor(next_state, dtype=torch.float)
-        action = torch.tensor(action, dtype=torch.long)
-        reward = torch.tensor(reward, dtype=torch.float)
-        # (n,x)
+    def sample_shape(self):
+        return []
 
-        # handle multiple sizes
-        if len(state.shape) == 1: # 1 dimension, so 1 num. So reshape
-            # (1,x)
-            state = torch.unsqueeze(state, 0) # Append 1 dimension to beginning
-            next_state = torch.unsqueeze(next_state, 0)
-            action = torch.unsqueeze(action, 0)
-            reward = torch.unsqueeze(reward, 0)
-            done = (done, ) # Tuple with 1 value.
+    def sample_dtype(self):
+        return tf.int64
 
-            # So now, shape is correct
+class FullyConvPolicyBigMap(ActorCriticPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, **kwargs):
+        super(FullyConvPolicyBigMap, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, **kwargs)
+        n_tools = int(ac_space.n / (ob_space.shape[0] * ob_space.shape[1]))
+        self._pdtype = NoDenseCategoricalProbabilityDistributionType(ac_space.n)
+        with tf.variable_scope("model", reuse=kwargs['reuse']):
+            pi_latent, vf_latent = FullyConv2(self.processed_obs, n_tools, **kwargs)
+            self._value_fn = linear(vf_latent, 'vf', 1)
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+        self._setup_init()
 
-            # Bellman Eqn simplied to Q Update Rule
-            # 1: Predicted Q Values with current state
-            pred = self.model(state) # Action which gives 4 diff values
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+        else:
+            action, value, neglogp = self.sess.run([self.action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+        return action, value, self.initial_state, neglogp
 
-            target = pred.clone()
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
 
-            for idx in range(len(done)): # Everything should have same shape above
-                Q_new = reward[idx]
-                if not done[idx]:
-                    Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
+    def value(self, obs, state=None, mask=None):
+        return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
-                target[idx][torch.argmax(action).item()] = Q_new
-            # 2: Q_new = reward + gamma * max(next_predicted_Q_Value_ -> only do this if not done
-            #pred.clone()
-            #preds[argmax(action)] = Q_new # Index of max element which is 1 is set to q value
-            #  
+class FullyConvPolicySmallMap(ActorCriticPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, **kwargs):
+        super(FullyConvPolicySmallMap, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, **kwargs)
+        n_tools = int(ac_space.n / (ob_space.shape[0] * ob_space.shape[1]))
+        self._pdtype = NoDenseCategoricalProbabilityDistributionType(ac_space.n)
+        with tf.variable_scope("model", reuse=kwargs['reuse']):
+            pi_latent, vf_latent = FullyConv1(self.processed_obs, n_tools, **kwargs)
+            self._value_fn = linear(vf_latent, 'vf', 1)
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+        self._setup_init()
 
-            self.optimizer.zero_grad()
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+        else:
+            action, value, neglogp = self.sess.run([self.action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+        return action, value, self.initial_state, neglogp
 
-            loss = self.criterion(target, pred)
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
 
-            # Update Gradients
-            loss.backward() 
+    def value(self, obs, state=None, mask=None):
+        return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
-            self.optimizer.step()
+class CustomPolicyBigMap(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomPolicyBigMap, self).__init__(*args, **kwargs, cnn_extractor=Cnn2, feature_extraction="cnn")
 
+class CustomPolicySmallMap(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomPolicySmallMap, self).__init__(*args, **kwargs, cnn_extractor=Cnn1, feature_extraction="cnn")
