@@ -3,7 +3,7 @@ from gym import spaces
 
 from BasicRepresentation import BasicRepresentation
 
-numOfBlockTypes = 3 # Think of a Generalized config file kinda soln later
+numOfBlockTypes = 3 # Think of a Generalized config file kinda soln laters
 low = np.array([0,0,1]).astype(np.int8)
 high = np.array([1,0,0]).astype(np.int8)
 
@@ -45,7 +45,7 @@ class LegoPCGEnv(gym.Env):
         # observation["heatmap"] = self._heatmap.copy()
         return observation
 
-    def step(self, action, currentTileLocation):
+    def step(self, action):
 
         # Increment Number Of Iterations counter
         self.numOfIterations += 1

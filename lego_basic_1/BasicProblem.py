@@ -12,7 +12,7 @@ class BasicProblem:
         self._height = 10
 
     def get_tile_types(self):
-        return ["empty", "solid"]
+        return ["empty", "3005", "3004", "3622"]
 
     """
     Adjust the parameters for the current problem
