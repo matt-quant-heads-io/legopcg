@@ -359,6 +359,12 @@ def gen_random_map(random, width, height, prob):
     ).astype(np.uint8)
     return map
 
+def gen_random_map_3d(random, width, height, depth):
+    """
+        Will be streamlined later
+    """
+    map = np.zeros(shape=(width, height, depth))
+    return map
 
 """
 A method to convert the map to use the tile names instead of tile numbers
