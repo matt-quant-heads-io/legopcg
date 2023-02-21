@@ -3,9 +3,8 @@ import os
 import sys
 import subprocess
 import imageio
-
 import re
-
+import torch 
 
 
 
@@ -67,16 +66,16 @@ onehot_index_to_char_map = {
     3 : 'c'
 }
 
-def convertOneHotToChar(oneHotMap):
-    charMap = []
+def convert_one_hot_to_char(one_hot_map):
+    char_map = []
 
-    for z in range(len(oneHotMap)):
-        for y in range(len(oneHotMap[0])):
-            for x in range(len(oneHotMap[0][0])):
-                char_tile = onehot_index_to_char_map[oneHotMap[z][y][x]]
-                charMap.append(char_tile)
+    for y in range(len(one_hot_map)):
+        for x in range(len(one_hot_map[0])):
+            for z in range(len(one_hot_map[0][0])):
+                char_tile = onehot_index_to_char_map[one_hot_map[y][x][z]]
+                char_map.append(char_tile)
 
-    return np.array(charMap).reshape((10,10,10))
+    return np.array(char_map).reshape((10,10,10))
     
 def convertOneHotToString(onehot):
     str_map = []
@@ -184,14 +183,14 @@ def createGIF():
                         image = imageio.imread(png_file_path)
                         writer.append_data(image)                
 
-def write_curr_obs_to_dir_path(obsOneHot, dir_path, curr_step_num):
-    charMap = convertOneHotToChar(obsOneHot)
+def write_curr_obs_to_dir_path(obs_one_hot, dir_path, curr_step_num, lego_block_dims):
+    char_map = convert_one_hot_to_char(obs_one_hot)
     f = open(dir_path+'/step_'+str(curr_step_num)+'.txt', "a")
-    f.write(str(charMap))
+    f.write(str(char_map))
     f.close()
-    generateDatFile(charMap, dir_path,curr_step_num)
+    generate_dat_file(char_map, dir_path,curr_step_num,lego_block_dims)
 
-def generateDatFile(charMap, dir_path,curr_step_num):
+def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
     f = open(dir_path+'/step_'+str(curr_step_num)+'.dat', "a")
     f.write("0\n")
     f.write("0 Name: New Model.ldr\n")
@@ -199,35 +198,35 @@ def generateDatFile(charMap, dir_path,curr_step_num):
     f.write("\n")
 
     
-    startBlockChar = charMap[0][0][0]
-    startBlockName = char_to_str_map[startBlockChar]
-    startBlockDimensions = LegoDimsDict[startBlockName]
+    start_block_char = char_map[0][0][0]
+    start_block_name = char_to_str_map[start_block_char]
+    start_block_dimensions = lego_block_dims[start_block_name]
     
-    for y in range(len(charMap[0])):
-        for z in range(len(charMap)):
-            for x in range(len(charMap[0][0])):
-                char = charMap[z][y][x]
+    for y in range(len(char_map[0])):
+        for x in range(len(char_map)):
+            for z in range(len(char_map[0][0])):
+                char = char_map[y][x][z]
 
                 if (char != 'w'):
                     # Get Dimensions of Lego Block
-                    legoBlockName = char_to_str_map[char]
-                    currentXYZDims = LegoDimensions.LegoDimsDict[legoBlockName]
+                    lego_block_name = char_to_str_map[char]
+                    current_xyz_dims = lego_block_dims[lego_block_name]
 
                     # Along x-dirn
                     factor = 0
-                    if (startBlockDimensions[0] != 0):
-                        if (currentXYZDims[0] > startBlockDimensions[0]):
-                            factor = (currentXYZDims[0] - startBlockDimensions[0]) * 10
-                        elif (currentXYZDims[0] < startBlockDimensions[0] ): # was >0
-                            factor = (currentXYZDims[0] - startBlockDimensions[0]) * 10  
+                    if (start_block_dimensions[0] != 0):
+                        if (current_xyz_dims[0] > start_block_dimensions[0]):
+                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10
+                        elif (current_xyz_dims[0] < start_block_dimensions[0] ): # was >0
+                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10  
                             
 
                     
                         
-                    xLego = x * 20 + factor
-                    yLego = y * -24  
-                    # yLego = y * 24 * currentXYZDims[1] 
-                    zLego = z * 20 
+                    x_lego = x * 20 + factor
+                    y_lego = y * -24  
+                    # y_lego = y * 24 * currentXYZDims[1] 
+                    z_lego = z * 20 
 
                     
 
@@ -237,21 +236,21 @@ def generateDatFile(charMap, dir_path,curr_step_num):
                 elif (char == 'a'):
                     f.write("1 7 ")
                     
-                    f.write(str(xLego) + ' ' + str(yLego) + ' ' + str(zLego) + ' ')
+                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
                     f.write("1 0 0 0 1 0 0 0 1 ")
                     f.write(getBlockName(char) + ".dat")
                     f.write("\n")
 
                 elif (char == 'b'):
                     f.write("1 7 ")
-                    f.write(str(xLego) + ' ' + str(yLego) + ' ' + str(zLego) + ' ')
+                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
                     f.write("1 0 0 0 1 0 0 0 1 ")
                     f.write(getBlockName(char) + ".dat")
                     f.write("\n")
 
                 elif (char == 'c'):
                     f.write("1 7 ")
-                    f.write(str(xLego) + ' ' + str(yLego) + ' ' + str(zLego) + ' ')
+                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
                     f.write("1 0 0 0 1 0 0 0 1 ")
                     f.write(getBlockName(char) + ".dat")
                     f.write("\n")
@@ -325,3 +324,20 @@ def write_obs_to_mpd_file(path, curr_obs_coords_lst, template_model_map_lst):
 
 
 
+def get_device() -> str:
+    """
+        Return device name based on the availability of GPU
+    """
+    # support for cuda and apple silicon
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.has_mps:
+        # device = torch.device('mps')
+        # torch has not yet completely implemented for mps 
+        device = torch.device('cpu')
+
+    else:
+        device = torch.device('cpu')
+
+    # print(device)
+    return device

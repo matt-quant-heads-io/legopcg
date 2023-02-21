@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# avoid loading heavy files 
+logs
+saved_models
+run.txt
