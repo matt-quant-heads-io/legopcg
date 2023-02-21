@@ -45,5 +45,3 @@ PODCNN_CONFIG = {
 }
 
 
-
-print(PODCNN_CONFIG["data"]["path"])
