@@ -19,8 +19,8 @@ class LegoModel3D(BaseModel):
         self.num_timesteps = self.train_config["num_timesteps"]
         self.lego_blocks_dims_dict = self.train_config["LegoBlockDimensions"]
         self.log_path = self.model_config["log_path"]
-        self.saved_model_path = os.path.join(self.model_config["saved_model_path"],
-                                self.model_config["model_name"])
+        self.saved_model_path = f'{self.model_config["saved_model_path"]}/{self.model_config["model_name"]}'
+                 
         self.animations_path = self.model_config["animations_path"]
 
         self.model = None
@@ -57,6 +57,7 @@ class LegoModel3D(BaseModel):
 
     def evaluate(self):
         # will be moved to evaluator later 
+        self.model = self.load_model()
         curr_obs = self.env.reset()
         curr_step_num = 0 
         while True:

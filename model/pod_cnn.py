@@ -21,18 +21,17 @@ from executor.podcnn_trainer import PoDCNNTrainer
 LOG = None #get_logger('PoDCNN')
 
 
-class PoDCNN(BaseModel):
+class PoDCNNModel(BaseModel):
     """PoDCNN Model Class"""
 
     def __init__(self, config):
         super().__init__(config)
-        self.output_channels = self.config['model']['output']
 
         self.dataset = None
         self.info = None
-        self.train_config = self.config['train']
-        self.data_config = self.config['data']
-        self.model_config = self.config['model']
+        self.train_config = self.config.train
+        self.data_config = self.config.data
+        self.model_config = self.config.model
         self.batch_size = self.train_config['batch_size']
         self.buffer_size = self.train_config['buffer_size']
         self.epochs = self.train_config['epochs']

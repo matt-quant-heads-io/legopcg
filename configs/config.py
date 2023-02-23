@@ -1,12 +1,7 @@
 import json
 
-
 class Config(dict):
-    #TODO: when porting to control-pcgrl this will be hydra construct
     """Config class which contains data, train and model hyperparameters"""
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-
     
     def __init__(self, data, train, model):
         super().__init__()

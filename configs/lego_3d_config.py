@@ -4,7 +4,6 @@ LEGO3D_CONFIG = {
     "data":{
 
     },
-
     "train" : {
         "num_timesteps" : 150000,
         "policy" : "MlpPolicy",

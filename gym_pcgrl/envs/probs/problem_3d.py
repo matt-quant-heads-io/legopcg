@@ -85,7 +85,7 @@ class Problem3D:
             dict(string,any): stats of the current map to be used in the reward, 
             episode_over, debug_info calculations
         """
-        raise NotImplementedError('get_graphics is not implemented')
+        raise NotImplementedError('get_stats is not implemented')
 
     def get_reward(self, new_stats, old_stats):
         """
@@ -114,7 +114,7 @@ class Problem3D:
             boolean: True if the level reached satisfying quality based on the stats and 
             False otherwise
         """
-        raise NotImplementedError('get_graphics is not implemented')
+        raise NotImplementedError('get_episode_over is not implemented')
 
     def get_debug_info(self, new_stats, old_stats):
         """
