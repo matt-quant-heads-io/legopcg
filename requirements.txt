@@ -48,3 +48,4 @@ Werkzeug==2.2.2
 wheel==0.37.1
 wrapt==1.14.1
 zipp==3.12.1
+stable-baselines3==1.7.0
