@@ -4,8 +4,10 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pard
 
 from .pod_cnn import PoDCNNModel
 from .lego_model_3d import LegoModel3D
+from .cmamae_model import CMAMAEModel
 
 MODELS_MAP = {
     "podcnn_model": PoDCNNModel,
-    "lego3d_model" : LegoModel3D
+    "lego3d_model" : LegoModel3D,
+    "cmamae_model": CMAMAEModel
 }
