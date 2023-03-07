@@ -2,7 +2,11 @@
 
 This project is a lego building environment for analyzing and experimenting with various generative learning algorithms.
 
+<<<<<<< HEAD
 ![](media/PoD_generates_vintage_car.gif)
+=======
+![Alt Text](media/PoD_builds_vintage_car.gif)
+>>>>>>> 2395d13a9a1e614f168b5965c21abdf61309374c
 
 # Using legopcg
 
