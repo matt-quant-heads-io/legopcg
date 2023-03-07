@@ -1,6 +1,8 @@
 # legopcg
 
-This project is a lego building environment for analyzing and experimenting with various generative algorithms.
+This project is a lego building environment for analyzing and experimenting with various generative learning algorithms.
+
+![](https://github.com/matt-quant-heads-io/legopcg/tree/main/media/PoD_builds_vintage_car.gif)
 
 # Using legopcg
 
