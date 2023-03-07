@@ -53,3 +53,5 @@ gymnasium==0.27.0
 ribs==0.5.0
 moviepy==1.0.3
 matplotlib==3.5.3
+pyldraw
+PyQt5

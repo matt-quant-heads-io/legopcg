@@ -1,7 +1,5 @@
 """Model config in json format"""
-import os
-import pathlib
-import sys
+
 
 CMAMAE_CONFIG = {
     "model":{
