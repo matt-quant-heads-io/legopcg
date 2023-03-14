@@ -2,7 +2,8 @@
 
 This project is a lego building environment for analyzing and experimenting with various generative learning algorithms.
 
-![](Controllable_racer.gif)
+
+<img src="media/PoD_generates_vintage_car.gif" width="450"/> <img src="media/Controllable_racer.gif" width="450"/>
 
 
 # Using legopcg
