@@ -272,6 +272,53 @@ class Cropped(gym.Wrapper):
         return obs
 
 
+class Cropped3D(gym.Wrapper):
+
+    def __init__(self, env):
+
+        self.env = env
+        gym.Wrapper.__init__(self, self.env)
+
+        assert (
+            len(self.env.observation_space.shape) == 3
+        ), "This wrapper only works on 3D arrays."
+
+    def step(self, action):
+
+        obs, reward, done, info = self.env.step(action)
+        # print(f"obs is: {obs}")
+        obs = self.transform(obs, info['location'])
+        # print(f"obs after transform: {obs}")
+        return obs, reward, done, info
+
+    def reset(self):
+        obs = self.env.reset()
+        # obs = self.transform(obs)
+        return obs
+
+    def transform(self, obs, location):
+        """
+            For now, crop it to 5x5x5
+        """
+        y,x,z = location
+        cropped_map = obs[y-2:y+3, x-2:x+3, z-2:z+3]
+
+        if cropped_map.shape != (5,5,5):
+            l = []
+            for i in range(-2,3):
+                for j in range(-2,3):
+                    for k in range(-2,3):
+                        if (y + i not in range(10) or 
+                            x + j not in range(10) or 
+                            z + k not in range(10)): 
+                            l.append(0)
+                        else:
+                            l.append(obs[y+i][x+j][z+k])
+
+            cropped_map = np.array(l).reshape(5,5,5)
+        
+        return cropped_map
+
 ################################################################################
 #   Final used wrappers for the experiments
 ################################################################################

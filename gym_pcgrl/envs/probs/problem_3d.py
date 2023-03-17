@@ -67,9 +67,11 @@ class Problem3D:
             height (int): change the height of the problem level
             depth (int): change the depth of the problem level
         """
-        self.width = kwargs.get('width', self.width)
-        self.height = kwargs.get('height', self.height)
-        self.depth = kwargs.get('depth', self.depth)
+        height, width, depth = kwargs.get("grid_dimensions")
+        self.width = width
+        self.height = height
+        self.depth = depth
+        self.total_bricks = kwargs.get("total_bricks")
         
         # prob = kwargs.get('probs')
         # if prob is not None:
