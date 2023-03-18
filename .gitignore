@@ -133,4 +133,16 @@ dmypy.json
 logs
 saved_models
 run.txt
+
+gen_plots.py
+create_gif.py
+dev_notes_to_delete.txt
+generate_gif.py
+model_params.py
+.DS_Store/*
+
+
+data/.DS_Store
+data/goals/.DS_Store
+
 animations
