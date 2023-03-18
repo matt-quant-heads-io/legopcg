@@ -6,10 +6,13 @@ LEGO3D_CONFIG = {
     },
     "train" : {
         "num_timesteps" : 150000,
+        "num_envs" : 2,
+        "total_bricks" : 100,
         "policy" : "MlpPolicy",
-        "GridDimensions" : [10,10,10],
-        "LegoBlockIDs" : ["empty", "3005", "3004", "3622"],
-        "LegoBlockDimensions" : {
+        "grid_dimensions" : [10,10,10],
+        "crop_dimensions" : [5,5,5],
+        "lego_block_ids" : ["empty", "3005", "3004", "3622"],
+        "lego_block_dims" : {
             "empty" : [0,0,0],
             "3005" : [1,1,1], 
             "3004" : [2,1,1],

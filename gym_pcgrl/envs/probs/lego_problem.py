@@ -20,27 +20,49 @@ class LegoProblem(Problem3D):
     def get_stats(self, map):
         pass 
 
+    
     def get_reward(self, new_stats, old_stats):
+        
         reward = 0
         y, x, z = new_stats['new_location']
         punish = new_stats['punish']
-        old_y = old_stats['old_location'][0]
+        map = new_stats["map"]
 
-        # best reward condition so far 
-        if (y > old_y or 
-            (y == 9)):
-            if punish:
-                reward = -0.5
-            else:
-                reward = 2
+
+        if punish:
+            reward = -0.5 
         else:
-            reward = -1
+            # reward for decreasing distance from top 
+            reward += 1 - ((9 - y)/9)**0.4
 
-        # Print Reward graph -> Accumulate rewards
-        # print("Reward: ", reward)
+            if y > 0:
+                # if between levels 1 to 8
+                if self._are_studs_connected(map, (y,x,z)):
+                    reward += 1
+                else:
+                    reward -= 2
+
         self.total_reward += reward
 
         return reward
+    
+
+    def _are_studs_connected(self, map, location):
+        """
+            call this function only if the agent is in level 1 to 9 
+            for a single orientation A brick is connected if and only if 
+            it is placed on top of each other
+        """
+        y,x,z = location
+
+        i = y - 1 
+
+        while i >= 0:
+            if map[i][x][z] == 0:
+                return False
+            i -= 1 
+
+        return True
     
     def get_episode_over(self, new_stats, old_stats):    
         
@@ -48,6 +70,7 @@ class LegoProblem(Problem3D):
             # print("episode over: ", representation.num_of_bricks)
             # print("episode over: ", np.count_nonzero(representation._map))
             # print("Total reward: ",  self.total_reward)
+            print("Episode Over.")
             self.reward_history.append(self.total_reward)
             self.total_reward = 0 
             return True

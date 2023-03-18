@@ -13,6 +13,10 @@ class Representation3D:
         self._random_start = True
         self._map = None
         self._old_map = None
+        self.render_map = None
+        self.lego_block_ids = None
+        self.lego_block_dimensions_dict = None
+        self.num_bricks = None
 
         self.seed()
 
@@ -30,16 +34,22 @@ class Representation3D:
         self._random, seed = seeding.np_random(seed)
         return seed
 
-    def reset(self, height, width, depth):
+    def reset(self, **kwargs):
         """
         Resets the current representation
 
         Parameters:
-            width (int): the generated map width
-            height (int): the generated map height
-            prob (dict(int,float)): the probability distribution of each tile value
+            Kwargs from parent configs
         """
+        # print(kwargs)
+        kwargs = kwargs["kwargs"]
+        height, width, depth = kwargs.get("grid_dimensions")
+        self.lego_block_ids = kwargs.get("lego_block_ids")
+        self.lego_block_dimensions_dict = kwargs.get("lego_block_dims")
+        self.num_bricks = kwargs.get("total_bricks")
+
         self._map = gen_random_map_3d(self._random, width, height, depth)
+        self.render_map = gen_random_map_3d(self._random, width, height, depth)
 
         # if self._random_start or self._old_map is None:
         #     self._map = gen_random_map_3d(self._random, width, height, prob)

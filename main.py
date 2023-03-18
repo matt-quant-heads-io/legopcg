@@ -16,14 +16,15 @@ def get_args():
 
 def run(mode, config_id, model_id, gen_train_data):
     config = configs.CONFIGS_MAP[config_id]
-    model = models.MODELS_MAP[model_id](config)
+    model = models.MODELS_MAP[model_id](config, mode)
     if mode == 'train':
         if gen_train_data:
             model.generate_data()
         model.load_data()
         model.train()
     else:
-        model.run_inference()
+        # model.run_inference()
+        model.evaluate()
 
 
 if __name__ == "__main__":
