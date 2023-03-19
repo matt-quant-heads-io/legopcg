@@ -40,15 +40,15 @@ def load_data(Train_df,obs_size):
     X = []
     y = []
 
-    batch_size = 5000
+    batch_size = 100000
+    rows_per_df = 100000
 
     for file in os.listdir(Train_df):
+        if not file.endswith('.csv'):
+            continue
         print(f"compiling df {file}")
-        df = pd.read_csv(f"{pod_root_path}/{file}")
-        rand_idx = random.randint(batch_size, len(df)-1)
-        df = df[(rand_idx-batch_size):rand_idx]
-        
-        
+        # rand_idx = random.randint(batch_size, (rows_per_df-1))
+        df = pd.read_csv(f"{Train_df}/{file}")
         dfs.append(df)
 
     df = pd.concat(dfs)
@@ -84,15 +84,32 @@ def load_data(Train_df,obs_size):
 
 
 
-model_abs_path = f"/Users/matt/legopcg/saved_models/racers_obs_5.h5"
 
 
-obs_size = 10
+
+obs_size = 6
 data_size = 1
 version = 3
-batch_size = 300000
 
-pod_root_path = f'/Users/matt/legopcg/data/trajectories/racers'
+pod_root_path = f'{os.path.dirname(os.path.abspath(__file__))}/data/trajectories/racers'
+model_abs_path = f"{os.path.dirname(os.path.abspath(__file__))}/saved_models/racers_obs_{obs_size//2}.h5"
+
+# dfs = []
+# for file in os.listdir(pod_root_path):
+#     if not file.endswith('.csv'):
+#         continue
+#     print(f"compiling df {file}")
+#     df = pd.read_csv(f"{pod_root_path}/{file}", nrows=15000)
+#     dfs.append(df)
+
+# df = pd.concat(dfs)
+
+# df = df.sample(frac=1).reset_index(drop=True)
+# y_true = df[['target']]
+# y = np_utils.to_categorical(y_true)
+# print(f"y shape {y.shape}")
+
+# input('')
 
 
 inputs = [
@@ -120,7 +137,7 @@ mcp_save = ModelCheckpoint(model_abs_path, save_best_only=True, monitor='categor
 
 for i in range(20):
     
-    [X,move_diff], targets = batch_generator("/Users/matt/legopcg/data/trajectories/racers", obs_size)
+    [X,move_diff], targets = batch_generator(f"{os.path.dirname(os.path.abspath(__file__))}/data/trajectories/racers", obs_size)
     print(f"train_data: {[X,move_diff]}")
     print(f"targets: {targets}")
     history = conditional_cnn_model.fit([X,move_diff],targets, epochs=10, steps_per_epoch=64, verbose=2, callbacks=[mcp_save])
