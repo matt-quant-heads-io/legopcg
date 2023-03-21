@@ -1,13 +1,15 @@
 import os 
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import DummyVecEnv
+from stable_baselines3.common.env_checker import check_env
 
 # local imports
 from .base_model import BaseModel
 from utils import utils as ut 
-from gym_pcgrl.envs.pcgrl_env_3d import LegoPCGEnv3D
+from gym_pcgrl.envs.pcgrl_env_3d_piecewise import LegoPCGEnv3DPiecewise
 
-class LegoModel3D(BaseModel):
+
+class LegoModelPiecewise(BaseModel):
 
     def __init__(self, cfg, mode="train"):
         super().__init__(cfg)
@@ -25,7 +27,9 @@ class LegoModel3D(BaseModel):
 
         self.model = None
         self.device = ut.get_device()
-        self.env = DummyVecEnv([lambda: LegoPCGEnv3D()])
+        self.env = DummyVecEnv([lambda: LegoPCGEnv3DPiecewise(self.train_config)])
+
+        #check_env(self.env)
 
         # train or load a trained model
         if mode == "train":
@@ -44,8 +48,7 @@ class LegoModel3D(BaseModel):
         self.model = PPO(self.policy, 
                         self.env, 
                         device=self.device, 
-                        tensorboard_log=self.log_path,
-                        policy_kwargs=dict(normalize_images=False))
+                        tensorboard_log=self.log_path)
 
     def load_model(self):
 
@@ -53,21 +56,18 @@ class LegoModel3D(BaseModel):
 
     def train(self):
         # will be moved to executor once callbacks are in place 
-        self.model.learn(total_timesteps=self.num_timesteps)
+        self.model.learn(self.num_timesteps, progress_bar=True)
         self.model.save(self.saved_model_path)
 
-        ut.write_curr_obs_to_dir_path(self.env.envs[0].rep.final_map, 
-                        self.animations_path, 
-                        1,
-                        self.lego_blocks_dims_dict
-                        )
+        self.evaluate()
 
     def evaluate(self):
         # will be moved to evaluator later 
-        self.model = self.load_model()
+        #self.model = self.load_model()
         curr_obs = self.env.reset()
         curr_step_num = 0 
         while True:
+
             action, _ = self.model.predict(curr_obs)
             # print(action)
             curr_obs, _, is_finished, info = self.env.step(action) 
@@ -83,8 +83,12 @@ class LegoModel3D(BaseModel):
                 break
 
         # write data file from final_map
-        ut.write_curr_obs_to_dir_path(self.env.envs[0].rep.final_map, 
+        ut.save_map_piecewise(self.env.envs[0].rep.final_full_map, 
                         self.animations_path, 
                         curr_step_num,
-                        self.lego_blocks_dims_dict
+                        self.lego_blocks_dims_dict,
+                        self.env.envs[0].reward_history[-1],
+                        self.env.envs[0].reward_history
                         )
+        
+        print(self.env.envs[0].reward_history)

@@ -1,3 +1,4 @@
+#from typing import Self
 import numpy as np
 import os
 import sys
@@ -5,6 +6,29 @@ import subprocess
 import imageio
 import re
 import torch 
+import matplotlib.pyplot as plt
+
+
+class LegoPiece():
+    def __init__(self, dimsNum, x, y, z):
+        super().__init__()
+        #self.dims = LegoDimsDict[dimsNum]
+        self.x = x
+        self.y = y
+        self.z = z
+
+        self.next_x = x
+        self.next_y = y
+        self.next_z = z
+
+    def reset(i):
+        self.x = i
+        self.y = 0
+        self.z = 0
+
+        
+
+
 
 
 
@@ -184,14 +208,21 @@ def createGIF():
                         writer.append_data(image)                
 
 def write_curr_obs_to_dir_path(obs_one_hot, dir_path, curr_step_num, lego_block_dims):
+    iter = 0
+    base_filename = dir_path+'/step_'+str(curr_step_num)+ '-' + str(iter)
+
+    while(os.path.isfile(base_filename + '.txt')):
+        iter +=1
+        base_filename = dir_path+'/step_'+str(curr_step_num)+ '-' + str(iter)
+
     char_map = convert_one_hot_to_char(obs_one_hot)
-    f = open(dir_path+'/step_'+str(curr_step_num)+'.txt', "a")
+    f = open(base_filename +'.txt', "a")
     f.write(str(char_map))
     f.close()
-    generate_dat_file(char_map, dir_path,curr_step_num,lego_block_dims)
+    generate_dat_file(char_map, base_filename, lego_block_dims)
 
-def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
-    f = open(dir_path+'/step_'+str(curr_step_num)+'.dat', "a")
+def generate_dat_file(char_map, base_filename, lego_block_dims):
+    f = open(base_filename +'.dat', "a")
     f.write("0\n")
     f.write("0 Name: New Model.ldr\n")
     f.write("0 Author:\n")
@@ -341,3 +372,101 @@ def get_device() -> str:
 
     # print(device)
     return device
+
+
+def save_map_piecewise(obs_one_hot, dir_path, curr_step_num, lego_block_dims, curr_reward, rewards = None):
+    if not os.path.exists(dir_path + "/piecewise"):
+            os.makedirs(dir_path + "/piecewise")
+
+    iter = 0
+    savedir = dir_path + "/piecewise/" + str(iter) + "/"
+
+    if curr_step_num == 0:
+        while (os.path.exists(savedir)):
+            iter+=1
+            savedir = dir_path + "/piecewise/" + str(iter) + "/"
+        os.makedirs(savedir)
+    else:
+        while(os.path.exists(savedir)):
+            iter += 1
+            savedir = dir_path + "/piecewise/" + str(iter) + "/"
+        savedir = dir_path + "/piecewise/" + str(iter-1) + "/"
+        if not (os.path.exists(savedir)):
+            os.makedirs(savedir)
+
+    if rewards:
+        x = range(len(rewards))
+        plt.title("rewards")
+        plt.plot(x, rewards)
+        plt.savefig(savedir + "rewards.png")
+
+    char_map = convert_one_hot_to_char(obs_one_hot)
+    ftxt = open(savedir + str(curr_step_num) + "_"+ curr_reward +'.txt', "a")
+    ftxt.write(str(char_map))
+    ftxt.close()
+    
+    f = open(savedir + str(curr_step_num) + "_"+ curr_reward +'.dat', "a")
+    f.write("0\n")
+    f.write("0 Name: New Model.ldr\n")
+    f.write("0 Author:\n")
+    f.write("\n")
+
+    
+    start_block_char = char_map[0][0][0]
+    start_block_name = char_to_str_map[start_block_char]
+    start_block_dimensions = lego_block_dims[start_block_name]
+    
+    for y in range(len(char_map[0])):
+        for x in range(len(char_map)):
+            for z in range(len(char_map[0][0])):
+                char = char_map[y][x][z]
+
+                if (char != 'w'):
+                    # Get Dimensions of Lego Block
+                    lego_block_name = char_to_str_map[char]
+                    current_xyz_dims = lego_block_dims[lego_block_name]
+
+                    # Along x-dirn
+                    factor = 0
+                    if (start_block_dimensions[0] != 0):
+                        if (current_xyz_dims[0] > start_block_dimensions[0]):
+                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10
+                        elif (current_xyz_dims[0] < start_block_dimensions[0] ): # was >0
+                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10  
+                            
+
+                    
+                        
+                    x_lego = x * 20 + factor
+                    y_lego = y * -24  
+                    # y_lego = y * 24 * currentXYZDims[1] 
+                    z_lego = z * 20 
+
+                    
+
+                if (char == 'w'):
+                    a=1
+
+                elif (char == 'a'):
+                    f.write("1 7 ")
+                    
+                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
+                    f.write("1 0 0 0 1 0 0 0 1 ")
+                    f.write(getBlockName(char) + ".dat")
+                    f.write("\n")
+
+                elif (char == 'b'):
+                    f.write("1 7 ")
+                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
+                    f.write("1 0 0 0 1 0 0 0 1 ")
+                    f.write(getBlockName(char) + ".dat")
+                    f.write("\n")
+
+                elif (char == 'c'):
+                    f.write("1 7 ")
+                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
+                    f.write("1 0 0 0 1 0 0 0 1 ")
+                    f.write(getBlockName(char) + ".dat")
+                    f.write("\n")
+                
+    f.close()   

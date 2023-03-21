@@ -133,3 +133,14 @@ dmypy.json
 logs
 saved_models
 run.txt
+
+.vscode/
+animations.zip
+
+
+
+
+
+
+
+animations/piecewise/
