@@ -293,7 +293,7 @@ class Cropped3D(gym.Wrapper):
 
     def reset(self):
         obs = self.env.reset()
-        # obs = self.transform(obs)
+        obs = self.transform(obs, (5,5,5))
         return obs
 
     def transform(self, obs, location):

@@ -442,3 +442,161 @@ def get_range_reward(new_value, old_value, low, high):
         return high - new_value + old_value - low
     if new_value < low and old_value > high:
         return high - old_value + new_value - low
+
+
+
+def get_lego_reward(map, y,x,z):
+    new_map = np.copy(map)
+    dp = np.full((10,10,10), -1)
+    return get_longest_range(new_map, dp, y,x,z) - 1 
+
+
+def get_longest_range(map, dp, y,x,z):
+    
+    """
+        Get longest connected path using DP
+    """
+
+    if y < 0 or y > 9 or x < 0 or x > 9 or z < 0 or z > 9:
+        return 0
+    
+    if dp[y][x][z] != -1:
+        return dp[y][x][z]
+
+    rise, fall, right, left, up, down = 1,1,1,1,1,1
+    map[y][x][z] = -1
+
+    if y + 1 < 10 and map[y+1][x][z] != -1 and map[y+1][x][z] > 0:
+        rise = 1 + get_longest_range(map, dp, y+1, x, z)
+    
+    if y - 1 >= 0 and map[y-1][x][z] != -1 and map[y-1][x][z] > 0:
+        fall = 1 + get_longest_range(map, dp, y-1, x, z)
+
+    if x + 1 < 10 and map[y][x+1][z] != -1 and map[y][x+1][z] > 0:
+        right = 1 + get_longest_range(map, dp, y, x+1, z)
+
+    if x - 1 >= 0 and map[y][x-1][z] != -1 and map[y][x-1][z] > 0:
+        left = 1 + get_longest_range(map, dp, y, x-1, z)
+
+    if z + 1 < 10 and map[y][x][z+1] != -1 and map[y][x][z+1] > 0:
+        up = 1 + get_longest_range(map, dp, y, x, z+1)
+
+    if z - 1 >= 0 and map[y][x][z-1] != -1 and map[y][x][z-1] > 0:
+        down = 1 + get_longest_range(map, dp, y, x, z-1)
+
+    max_val = max([rise, fall, right, left, up, down])
+    
+    dp[y][x][z] = max_val
+
+    return max_val
+
+
+class LegoReward:
+    def __init__(self, rep_type="narrow3d") -> None:
+        self.rep_type = rep_type
+        self.total_height = 0
+    
+    def get_reward(self, new_stats, old_stats):
+        """
+            Returns the reward for the current state
+        """
+        if self.rep_type == "turtle3d":
+            return self._turtle_rep_reward(new_stats, old_stats)
+        elif self.rep_type == "wide3d":
+            return self._wide_rep_reward(new_stats, old_stats)
+        else:
+            return self._narrow_rep_reward(new_stats, old_stats) 
+
+    def _narrow_rep_reward(self, new_stats, old_stats):
+
+        reward = 0
+        y, _, _ = new_stats['new_location']
+        punish = new_stats['punish']
+        brick_added = new_stats['brick_added']
+
+        # map = new_stats["map"]
+        num_bricks = 100 - new_stats["num_of_bricks"]
+
+        if brick_added:
+            
+            self.total_height += y
+            reward += self.total_height/(num_bricks * 1000)
+
+            if punish:
+                reward = -reward
+        else:
+            reward = 0.00001 
+
+        return reward
+
+    def _wide_rep_reward(self, new_stats, old_stats):
+
+        reward = 0
+        y, _, _ = new_stats['new_location']
+        punish = new_stats['punish']
+        brick_added = new_stats['brick_added']
+
+        # map = new_stats["map"]
+        num_bricks = 100 - new_stats["num_of_bricks"]
+
+        if brick_added:
+            
+            self.total_height += y
+            reward += self.total_height/(num_bricks * 1000)
+
+            if punish:
+                reward = -reward
+        else:
+            reward = 0.00001 
+
+        return reward
+
+
+    def _turtle_rep_reward(self, new_stats, old_stats):
+
+        reward = 0
+        y, x, z = new_stats['new_location']
+        punish = new_stats['punish']
+        brick_added = new_stats['brick_added']
+
+        # if punish:
+        #     if num_bricks > 0:
+        #         self.total_height += y
+        #         reward -= self.total_height/(num_bricks * 1000)
+        #     else:
+        #         reward -= 0.9
+        # else:
+        #     # longest_path = get_lego_reward(map, y,x,z)
+        #     # reward += 0.001 * longest_path
+        #     # reward += 1 - ((9 - y)/9)**0.9
+        #     # average height
+        #     if num_bricks > 0:
+        #         self.total_height += y
+        #         reward += self.total_height/(num_bricks * 1000)
+        #     else:
+        #         reward = 0.1
+
+        # think about rewarding going down when bricks have been laid 
+        # till top in a certain column
+        
+        
+        if brick_added:
+
+            # distance from center
+            x_dist = max(abs(5 - x), 1)
+            z_dist = max(abs(5 - z), 1)
+
+            # father they are, lesser the reward
+            # reward = (5/x_dist + 5/z_dist + y/9) * 0.1
+            # reward = (5/x_dist + 5/z_dist) * 0.01
+            
+            reward = (1/x_dist + 1/z_dist + 5 * y/9)
+
+            if punish:
+                reward = -reward
+        else:
+            # reward = 0.1 * (y/9)
+            reward = 0.00001 
+
+        return reward
+

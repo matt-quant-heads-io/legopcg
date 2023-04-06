@@ -52,10 +52,13 @@ class PPOModel(BaseModel):
 
         assert self.env is not None, "Call 'get_vector_env' method first to make the env"
 
+        policy_kwargs = dict(net_arch=[128, 128])
+
         self.model = PPO(self.policy, 
                         self.env, 
                         device=self.device, 
-                        tensorboard_log=self.log_path)
+                        policy_kwargs=policy_kwargs)
+                        # tensorboard_log=self.log_path)
         
     def load_model(self):
 

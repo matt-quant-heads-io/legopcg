@@ -1,7 +1,7 @@
 import numpy as np
 import os
-import sys
 import subprocess
+import shutil
 import imageio
 import re
 import torch 
@@ -181,9 +181,22 @@ def createGIF():
                         print('\t- file %s (full path: %s)' % (filename, png_file_path)) 
 
                         image = imageio.imread(png_file_path)
-                        writer.append_data(image)                
+                        writer.append_data(image) 
+               
+def cleanup_dir(dir_path):
+    try: 
+        for file in os.listdir(dir_path):
+            file_path = os.path.join(dir_path, file)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+    except FileNotFoundError:
+        print("Directory does not exist, skipping cleanup")
+
 
 def write_curr_obs_to_dir_path(obs_one_hot, dir_path, curr_step_num, lego_block_dims):
+    # cleanup_dir(dir_path)
     char_map = convert_one_hot_to_char(obs_one_hot)
     f = open(dir_path+'/step_'+str(curr_step_num)+'.txt', "a")
     f.write(str(char_map))
@@ -191,7 +204,7 @@ def write_curr_obs_to_dir_path(obs_one_hot, dir_path, curr_step_num, lego_block_
     generate_dat_file(char_map, dir_path,curr_step_num,lego_block_dims)
 
 def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
-    f = open(dir_path+'/step_'+str(curr_step_num)+'.dat', "a")
+    f = open(dir_path+'/step_'+str(curr_step_num)+'.ldr', "a")
     f.write("0\n")
     f.write("0 Name: New Model.ldr\n")
     f.write("0 Author:\n")
@@ -256,9 +269,6 @@ def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
                     f.write("\n")
                 
     f.close()   
-
-
-
 
     # Used to write interpolated .mpd file (to be called inside write file function)
 def interpolate_template_map_with_coords(curr_obs_coords_lst, template_model_map_lst):
@@ -341,3 +351,230 @@ def get_device() -> str:
 
     # print(device)
     return device
+
+def create_dir(path):
+    try:
+        os.mkdir(path)
+    except FileExistsError:
+        print("Directory already exists, skipping creation") 
+
+
+# def render_in_blender(lego_block_coords : list[list], call_counter : int):
+#     """
+#         Render the scene in blender
+#     """
+
+#     # print(os.getcwd())
+#     script_path = f"./animations/render_script_{call_counter:02d}.py"
+#     images_path = f"./animations/images{call_counter:02d}/"
+#     create_dir(images_path)
+
+#     with open(script_path, "w") as outfile:
+        
+#         script = f"""
+# import bpy
+# # # Set up the scene
+# # bpy.ops.object.delete(use_global=False, confirm=False)
+# # scene = bpy.context.scene
+# # scene.camera.location = (0, 0, 15)
+
+# image_counter = 0 
+# image_path = "{images_path}"
+# bpy.ops.object.select_all(action='DESELECT')
+# # Select the default cube
+# bpy.data.objects['Cube'].select_set(True)
+# # Delete the default cube
+# bpy.ops.object.delete()
+
+# # Set up the camera
+# camera = bpy.data.objects['Camera']
+# camera.location = (15, -15, 15)
+# camera.rotation_euler = (0.7854, 0, 0.7854)
+
+# # set render resolution
+# bpy.context.scene.render.resolution_x = 500
+# bpy.context.scene.render.resolution_y = 500
+#         """
+#         outfile.write(script)
+#         for y,x,z in lego_block_coords:
+#             script = f"""
+# bpy.ops.mesh.primitive_cube_add(size=1, location=({x}, {z}, {y}))
+# path = image_path + "image_" + "{{:02d}}".format(image_counter) + ".png"
+# bpy.context.scene.render.filepath = path
+# bpy.ops.render.render(write_still=True, use_viewport=True)
+# image_counter += 1
+# """
+#             outfile.write(script)
+    
+#     blender_app = "/Applications/Blender.app/Contents/MacOS/Blender"
+#     args = [blender_app, "--background", "--python", script_path]
+    
+#     result = subprocess.run(args=args, check=True)
+
+#     if result.returncode == 0:
+#         create_gif(images_path, call_counter)
+#     else:
+#         print("Error in rendering the scene in blender")
+
+
+
+# def render_in_blender(lego_block_coords, call_counter : int):
+#     """
+#         Render the scene in blender
+#     """
+
+#     # print(os.getcwd())
+#     script_path = f"./animations/render_script_{call_counter:02d}.py"
+#     images_path = f"./animations/images{call_counter:02d}/"
+#     create_dir(images_path)
+
+#     with open(script_path, "w") as outfile:
+        
+#         script = f"""
+# import bpy
+# import math
+# import mathutils
+
+# def setupCamera(scene, c):
+#     pi = math.pi
+
+#     scene.camera.rotation_euler[0] = c[0] * (pi / 180.0)
+#     scene.camera.rotation_euler[1] = c[1] * (pi / 180.0)
+#     scene.camera.rotation_euler[2] = c[2] * (pi / 180.0)
+
+#     scene.camera.location.x = c[3]
+#     scene.camera.location.y = c[4]
+#     scene.camera.location.z = c[5]
+
+#     return
+
+# image_counter = 0 
+# image_path = "{images_path}"
+# bpy.ops.object.select_all(action='DESELECT')
+# # Select the default cube
+# bpy.data.objects['Cube'].select_set(True)
+# # Delete the default cube
+# bpy.ops.object.delete()
+
+# # Set up the camera
+# # camera = bpy.data.objects['Camera']
+
+# scene = bpy.data.scenes["Scene"]
+
+# config = list([67.1349, 0.779594, 148.858, 15.57961, 19.16202, 25.34536])
+
+# bpy.ops.object.camera_add()
+# cam = bpy.data.objects['Camera']
+# cam.rotation_mode = 'XYZ'
+
+# scene.camera = cam
+
+# setupCamera(scene=scene, c=config)
+
+
+
+# # set render resolution
+# bpy.context.scene.render.resolution_x = 500
+# bpy.context.scene.render.resolution_y = 500
+#         """
+#         outfile.write(script)
+#         for y,x,z in lego_block_coords:
+#             script = f"""
+# # revolveCameraByFractionOfCircle(camera, 1.0, ({x}, {z}, {y}))
+# bpy.ops.mesh.primitive_cube_add(size=1, location=({x}, {z}, {y}))
+# path = image_path + "image_" + "{{:02d}}".format(image_counter) + ".png"
+# bpy.context.scene.render.filepath = path
+# bpy.ops.render.render(write_still=True, use_viewport=True)
+# image_counter += 1
+# """
+#             outfile.write(script)
+    
+#     blender_app = "/Applications/Blender.app/Contents/MacOS/Blender"
+#     args = [blender_app, "--background", "--python", script_path]
+    
+#     result = subprocess.run(args=args, check=True)
+
+#     if result.returncode == 0:
+#         create_gif(images_path, call_counter)
+#     else:
+#         print("Error in rendering the scene in blender")
+    
+def render_in_leocad(base_path, env_num, lego_block_details):
+    """
+        Renders the lego block coords in leocad
+    """
+
+    leocad_path = os.path.join(base_path, f"leocad_{env_num:02d}")
+    image_path = os.path.join(base_path, f"images_{env_num:02d}")
+
+    block_counter = len(lego_block_details)
+
+    if block_counter == 1:
+        create_dir(leocad_path)
+        create_dir(image_path)
+
+    # counter = 0 
+    factor = 0
+
+    dat_file = os.path.join(leocad_path, f'block_{block_counter:02d}.dat')
+    png_file = os.path.join(image_path, f'block_{block_counter:02d}.png')
+                             
+    with open(dat_file, 'w') as f:
+        for y, x, z, brick_type in lego_block_details:
+            lego_block_name = onehot_index_to_str_map[brick_type]
+            # counter += 1 
+            x_lego = x * 20 + factor
+            y_lego = y * -24  
+            z_lego = z * 20 
+
+            line1 = ("1 7 ")
+            line2 = str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' '
+            line3 = "1 0 0 0 1 0 0 0 1 "
+            line4 = lego_block_name+ ".dat\n"
+            f.write(line1 + line2 + line3 + line4)
+
+    def generate_png():
+        # leocad app path in mac - convert it to a shell command
+        app_path = "/Applications/LeoCAD.app/Contents/MacOS/LeoCAD"
+        # args = [app_path, "--background", "--python", script_path]
+        leocad_command = f'''
+            {app_path}	\
+            --height "2046"	\
+            --width "2046"	\
+            --camera-angles 30 0	\
+            --shading "full" \
+            --line-width "2" \
+            --aa-samples "8" \
+            --image "{png_file}" \
+            {dat_file}																	
+
+        '''
+        os.system(leocad_command)
+    
+    generate_png()
+
+def create_gif(base_path):
+    """
+        look for image folders in the base path and create a gif 
+        for each folder
+    """
+
+    for _, folders, _ in os.walk(base_path, topdown=True):
+        for folder in folders:
+            if folder.startswith("images"):
+                files = []
+                images = []
+                images_path = os.path.join(base_path, folder)
+                for file_name in os.listdir(images_path):
+                    if file_name.endswith(".png"):
+                        files.append(file_name)
+                
+                # sort the files in the order of image number
+                files.sort(key=lambda x: int(x.split("_")[1].split(".")[0]))
+
+                for file_name in files:
+                        file_path = os.path.join(images_path, file_name)
+                        images.append(imageio.v2.imread(file_path))
+                
+                imageio.mimsave(os.path.join(images_path, f"animation.gif"), 
+                                images, fps=2)

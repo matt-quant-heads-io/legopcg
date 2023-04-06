@@ -6,6 +6,7 @@ from gym_pcgrl.envs.reps.turtle_rep import TurtleRepresentation
 from gym_pcgrl.envs.reps.turtle_cast_rep import TurtleCastRepresentation
 from gym_pcgrl.envs.reps.turtle_rep_3d import TurtleRepresntation3D
 from gym_pcgrl.envs.reps.wide_rep_3d import WideRepresentation3D
+from gym_pcgrl.envs.reps.narrow_rep_3d import NarrowRepresentation3D
 # all the representations should be defined here with its corresponding class
 REPRESENTATIONS = {
     "narrow": NarrowRepresentation,
@@ -16,4 +17,5 @@ REPRESENTATIONS = {
     "turtlecast": TurtleCastRepresentation,
     "turtle3d" : TurtleRepresntation3D,
     "wide3d" : WideRepresentation3D,
+    "narrow3d" : NarrowRepresentation3D,
 }

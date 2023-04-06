@@ -3,11 +3,11 @@ from gym import spaces
 import numpy as np
 
 """
-The wide representation where the agent can pick the tile position and tile value at each update.
+The narrow representation where the agent can pick the tile position and tile value at each update.
 """
 
 
-class WideRepresentation3D(Representation3D):
+class NarrowRepresentation3D(Representation3D):
     """
     Initialize all the parameters used by that representation
     """
@@ -15,26 +15,30 @@ class WideRepresentation3D(Representation3D):
     def __init__(self):
         super().__init__()
 
+
+    def reset(self, **kwargs):
+        super().reset(**kwargs)
+        self.y = 0
+        self.x = 5
+        self.z = 5
+
     """
-    Gets the action space used by the wide representation
+    Gets the action space used by the narrow representation
 
     Parameters:
-        width: the current map width
-        height: the current map height
         num_tiles: the total number of the tile values
 
     Returns:
-        MultiDiscrete: the action space used by that wide representation which
-        consists of the x position, y position, and the tile value
+        Discrete: the action space used by that narrow representation which
+        consists of the tile value
     """
 
     def get_action_space(self, **kwargs):
-        height, width, depth = kwargs.get("grid_dimensions")
         total_bricks = len(kwargs.get("lego_block_ids"))
-        return spaces.MultiDiscrete([height, width, depth, total_bricks])
+        return spaces.Discrete(total_bricks)
 
     """
-    Get the observation space used by the wide representation
+    Get the observation space used by the narrow representation
 
     Parameters:
         width: the current map width
@@ -65,7 +69,7 @@ class WideRepresentation3D(Representation3D):
     def update(self, action):
 
         """
-        Update the wide representation with the input action
+        Update the narrow representation with the input action
 
         Parameters:
             action: an action that is used to advance the environment (same as action space)
@@ -78,7 +82,7 @@ class WideRepresentation3D(Representation3D):
         self.punish = False
         self.brick_added = False
         # unpack action 
-        self.y, self.x, self.z, brick_type = action   
+        brick_type = action   
         tile_x, _, _ = self.lego_block_dimensions_dict[self.lego_block_ids[brick_type]]
 
         # valid location if = 0 or
@@ -88,29 +92,31 @@ class WideRepresentation3D(Representation3D):
         # be explored
 
         
-        grid_width = self._map.shape[1]
+        if action > 0:
+            grid_width = self._map.shape[1]
 
-        # if (self._map[y][x][z] == 0 and 
-        #     x + tile_x <= grid_width):
+            if (self._is_valid_location() and 
+                self.x + tile_x <= grid_width):
 
-        if (self._is_valid_location() and 
-            self.x + tile_x <= grid_width):
+                # standard code to be added in all representations
+                if brick_type > 0:
+                    self.num_bricks -= 1
+                    self.brick_added = True
+                    self.block_details.append((self.y,self.x,self.z, brick_type))
 
-            # standard code to be added in all representations
-            if brick_type > 0:
-                self.num_bricks -= 1
-                self.brick_added = True
-                self.block_details.append((self.y,self.x,self.z, brick_type)) 
+                # fill the number in first place 
+                self._map[self.y][self.x][self.z] = brick_type
+                self.render_map[self.y][self.x][self.z] = brick_type
 
-            # fill the number in first place 
-            self._map[self.y][self.x][self.z] = brick_type
-            self.render_map[self.y][self.x][self.z] = brick_type
+                # fill the rest with -1 (special value)
+                for i in range(1, tile_x):
+                    self.x += 1 
+                    self._map[self.y][self.x][self.z] = brick_type
 
-            # fill the rest with -1 (special value)
-            for i in range(1, tile_x):
-                self._map[self.y][self.x + i ][self.z] = brick_type
-        else:
-            self.punish = True
+            else:
+                self.punish = True
+        
+        self._move_the_agent()
 
         return
     
@@ -121,19 +127,23 @@ class WideRepresentation3D(Representation3D):
         
         if self.y - 1 >= 0 and self._map[self.y-1][self.x][self.z] == 0:
             return False
-        
-        # if x - 1 >= 0 and self._map[y][x-1][z] == 0:
-        #     return False
-
-        # if x + 1 >= 10 and self._map[y][x+1][z] == 0:
-        #     return False
-        
-        # if z - 1 >= 0 and self._map[y][x][z-1] == 0:
-        #     return False
-
-        # if z + 1 >= 10 and self._map[y][x][z+1] == 0:
-        #     return False
                 
         return True
 
-        
+    def _move_the_agent(self):
+            
+            
+            if self.x + 1 > 9 and self.z + 1 > 9:
+                self.x = 0
+                self.z = 0
+                self.y += 1
+            elif self.x + 1 > 9:
+                self.x = 0
+                self.z += 1
+            else:
+                self.x += 1
+            
+            if self.y > 9:
+                self.y = 0
+                # self.x = 0
+                # self.z = 0
