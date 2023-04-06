@@ -6,9 +6,14 @@ import model as models
 
 def get_args():
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument('--mode', choices=['inference', 'train'], required=True)
-    argument_parser.add_argument('--config_id', type=str, choices=['podcnn_config', 'lego3d_config', 'cmamae_config'], required=True)
-    argument_parser.add_argument('--model_id', type=str, choices=['podcnn_model', 'lego3d_model', 'cmamae_model'], required=True)
+    argument_parser.add_argument('--mode', choices=['inference', 'train'], 
+                                 required=False, default="train")
+    argument_parser.add_argument('--config_id', type=str, 
+                            choices=['podcnn_config', 'lego3d_config', 'cmamae_config'], 
+                            required=False, default="lego3d_config")
+    argument_parser.add_argument('--model_id', type=str, 
+                            choices=['podcnn_model', 'lego3d_model', 'cmamae_model'], 
+                            required=False, default="lego3d_model")
     argument_parser.add_argument('--gen_train_data', required=False, action="store_true")
 
     return argument_parser.parse_args()

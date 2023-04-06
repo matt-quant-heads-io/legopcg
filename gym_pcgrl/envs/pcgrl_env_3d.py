@@ -7,32 +7,17 @@ class LegoPCGEnv3D(gym.Env):
     
     def __init__(self, cfg, problem="lego3d", representation="wide3d"):
 
-        super(LegoPCGEnv3D, self).__init__()
-    
+        super(LegoPCGEnv3D, self).__init__()  
         self.config = cfg
+        self.config["rep_type"] = representation
         # Initialize Problem and Representation modules
         self.prob = PROBLEMS[problem]()
         self.rep = REPRESENTATIONS[representation]()
        
         # Define Action and observation Space
-        height, width, depth = self.config.get("grid_dimensions")
-        tile_types = len(self.config.get("lego_block_ids"))
-
-        self.action_space = self.rep.get_action_space(
-            height,
-            width,
-            depth,
-            tile_types
-        )
-
-        height, width, depth = self.config.get("crop_dimensions")
+        self.action_space = self.rep.get_action_space(**self.config)
         
-        self.observation_space = self.rep.get_observation_space(
-            height,
-            width,
-            depth,
-            tile_types
-        )
+        self.observation_space = self.rep.get_observation_space(**self.config)
 
         # Number of iterations
         self._iteration = 0
@@ -43,37 +28,41 @@ class LegoPCGEnv3D(gym.Env):
         # return [seed]
       
     def reset(self):
-        self.rep.reset(kwargs=self.config)
-        self.prob.reset()
+        self.rep.reset(**self.config)
+        self.prob.reset(**self.config)
         self._changes = 0
         self._iteration = 0
-        observation = 0
-        return observation
+        return self.rep.get_observation()
 
     def step(self, action):
 
         self._iteration += 1
 
-        # update the current state to the new state based on the taken action
-        y, x, z, tile_type = action   
-        updated = self.rep.update(action)
+        # update the current state to the new state based on the taken action   
+        self.rep.update(action)
 
         # Get the next state number
         observation = self.rep.get_observation()
         new_stats = {}
-        new_stats['new_location'] = [y, x, z]
-        new_stats['punish'] = updated
+        new_stats['new_location'] = [self.rep.y, self.rep.x, self.rep.z]
+        new_stats['punish'] = self.rep.punish
+        new_stats['brick_added'] = self.rep.brick_added
         new_stats['num_of_bricks'] = self.rep.num_bricks
         new_stats["map"] = self.rep._map
         old_stats = {}
         # old_stats['old_location'] = self.rep.old_location
+
         reward = self.prob.get_reward(new_stats, old_stats)
+
         
         done = self.prob.get_episode_over(new_stats, old_stats)
 
         info = {}
         info['solved'] = done
-        info['location'] = [y,x,z]
+        info['location'] = [self.rep.y, self.rep.x, self.rep.z]
+        info["num_of_bricks"] = self.rep.num_bricks
+        info["brick_added"] = self.rep.brick_added
+        info["block_details"] = self.rep.block_details
 
         # save the map so that it can be used to write dat file
         if done:

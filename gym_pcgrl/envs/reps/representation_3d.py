@@ -14,9 +14,16 @@ class Representation3D:
         self._map = None
         self._old_map = None
         self.render_map = None
+        self.final_map = None
         self.lego_block_ids = None
         self.lego_block_dimensions_dict = None
         self.num_bricks = None
+        self.block_details = []
+        self.y = 0 
+        self.x = 0 
+        self.z = 0
+        self.punish = False
+        self.brick_added = False
 
         self.seed()
 
@@ -42,7 +49,7 @@ class Representation3D:
             Kwargs from parent configs
         """
         # print(kwargs)
-        kwargs = kwargs["kwargs"]
+        # kwargs = kwargs["kwargs"]
         height, width, depth = kwargs.get("grid_dimensions")
         self.lego_block_ids = kwargs.get("lego_block_ids")
         self.lego_block_dimensions_dict = kwargs.get("lego_block_dims")
@@ -50,12 +57,10 @@ class Representation3D:
 
         self._map = gen_random_map_3d(self._random, width, height, depth)
         self.render_map = gen_random_map_3d(self._random, width, height, depth)
-
-        # if self._random_start or self._old_map is None:
-        #     self._map = gen_random_map_3d(self._random, width, height, prob)
-        #     self._old_map = self._map.copy()
-        # else:
-        #     self._map = self._old_map.copy()
+        self.y = 0 
+        self.x = 0 
+        self.z = 0
+        self.block_details = []
 
     def adjust_param(self, **kwargs):
         """
