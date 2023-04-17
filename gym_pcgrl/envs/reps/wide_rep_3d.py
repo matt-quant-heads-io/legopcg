@@ -78,8 +78,9 @@ class WideRepresentation3D(Representation3D):
         self.punish = False
         self.brick_added = False
         # unpack action 
-        self.y, self.x, self.z, brick_type = action   
-        tile_x, _, _ = self.lego_block_dimensions_dict[self.lego_block_ids[brick_type]]
+        self.y, self.x, self.z, brick_type = action 
+        self.predicted_location = (self.y, self.x, self.z)  
+        tile_x, tile_y, tile_z = self.lego_block_dimensions_dict[self.lego_block_ids[brick_type]]
 
         # valid location if = 0 or
         # the tile can be placed within the bounds of the grid
@@ -87,53 +88,51 @@ class WideRepresentation3D(Representation3D):
         # perhaps in future their axis orientation can also 
         # be explored
 
-        
-        grid_width = self._map.shape[1]
-
-        # if (self._map[y][x][z] == 0 and 
-        #     x + tile_x <= grid_width):
-
-        if (self._is_valid_location() and 
-            self.x + tile_x <= grid_width):
-
-            # standard code to be added in all representations
-            if brick_type > 0:
+        if brick_type > 0:
+            if (self._is_valid_location(tile_y, tile_x, tile_z)):
+                    
                 self.num_bricks -= 1
                 self.brick_added = True
-                self.block_details.append((self.y,self.x,self.z, brick_type)) 
+                self.brick_details.append((self.y,self.x,self.z, brick_type)) 
 
-            # fill the number in first place 
-            self._map[self.y][self.x][self.z] = brick_type
-            self.render_map[self.y][self.x][self.z] = brick_type
+                self.render_map[self.y][self.x][self.z] = brick_type 
 
-            # fill the rest with -1 (special value)
-            for i in range(1, tile_x):
-                self._map[self.y][self.x + i ][self.z] = brick_type
+                for i in range(0, tile_y):
+                    for j in range(0, tile_x):
+                        for k in range(0, tile_z):
+                            self._map[self.y+i][self.x+j][self.z+k] = brick_type
+                            # map the filled locations to original location where brick is being placed
+                            # self.brick_locations[(self.y+i,self.x+j,self.z+k)] = (self.y,self.x,self.z)
+
+                self.x += tile_x        
+
+            else:
+                self.punish = True
         else:
-            self.punish = True
+            pass # agent has chosen to not place a brick here 
 
         return
     
-    def _is_valid_location(self):
+    # def _is_valid_location(self):
         
-        if self._map[self.y][self.x][self.z] != 0:
-            return False
+    #     if self._map[self.y][self.x][self.z] != 0:
+    #         return False
         
-        if self.y - 1 >= 0 and self._map[self.y-1][self.x][self.z] == 0:
-            return False
+    #     if self.y - 1 >= 0 and self._map[self.y-1][self.x][self.z] == 0:
+    #         return False
         
-        # if x - 1 >= 0 and self._map[y][x-1][z] == 0:
-        #     return False
+    #     # if x - 1 >= 0 and self._map[y][x-1][z] == 0:
+    #     #     return False
 
-        # if x + 1 >= 10 and self._map[y][x+1][z] == 0:
-        #     return False
+    #     # if x + 1 >= 10 and self._map[y][x+1][z] == 0:
+    #     #     return False
         
-        # if z - 1 >= 0 and self._map[y][x][z-1] == 0:
-        #     return False
+    #     # if z - 1 >= 0 and self._map[y][x][z-1] == 0:
+    #     #     return False
 
-        # if z + 1 >= 10 and self._map[y][x][z+1] == 0:
-        #     return False
+    #     # if z + 1 >= 10 and self._map[y][x][z+1] == 0:
+    #     #     return False
                 
-        return True
+    #     return True
 
         

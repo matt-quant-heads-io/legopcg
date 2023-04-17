@@ -83,67 +83,84 @@ class NarrowRepresentation3D(Representation3D):
         self.brick_added = False
         # unpack action 
         brick_type = action   
-        tile_x, _, _ = self.lego_block_dimensions_dict[self.lego_block_ids[brick_type]]
+        tile_x, tile_y, tile_z = self.lego_block_dimensions_dict[self.lego_block_ids[brick_type]]
 
-        # valid location if = 0 or
-        # the tile can be placed within the bounds of the grid
-        # for now the tiles are being placed along x-axis
-        # perhaps in future their axis orientation can also 
-        # be explored
-
-        
-        if action > 0:
-            grid_width = self._map.shape[1]
-
-            if (self._is_valid_location() and 
-                self.x + tile_x <= grid_width):
-
-                # standard code to be added in all representations
-                if brick_type > 0:
-                    self.num_bricks -= 1
-                    self.brick_added = True
-                    self.block_details.append((self.y,self.x,self.z, brick_type))
+        if brick_type > 0:
+            self.predicted_location = (self.y, self.x, self.z)
+            
+            if (self._is_valid_location(tile_y, tile_x, tile_z)):
+                self.num_bricks -= 1
+                self.brick_added = True
+                self.brick_details.append((self.y,self.x,self.z, brick_type))
 
                 # fill the number in first place 
-                self._map[self.y][self.x][self.z] = brick_type
                 self.render_map[self.y][self.x][self.z] = brick_type
 
                 # fill the rest with -1 (special value)
-                for i in range(1, tile_x):
-                    self.x += 1 
-                    self._map[self.y][self.x][self.z] = brick_type
+                for i in range(0, tile_y):
+                    for j in range(0, tile_x):
+                        for k in range(0, tile_z):
+                            self._map[self.y+i][self.x+j][self.z+k] = brick_type
+                            # map the filled locations to original location where brick is being placed
+                            # self.brick_locations[(self.y+i,self.x+j,self.z+k)] = (self.y,self.x,self.z)
 
+                self.x += tile_x
+                # self.z += tile_z
+                # self.y = tile_y - 1
             else:
                 self.punish = True
-        
-        self._move_the_agent()
+                # should you move the agent if punish is true? Think about it    
+                # self.x += 1 
+        else:
+            # agent is just moving without placing a brick
+            self.x += 1
+            self._move_the_agent()
+            self.predicted_location = (self.y, self.x, self.z)
+
+        # should you move the agent if punish is true? Think about it    
+        # self._move_the_agent()
 
         return
     
-    def _is_valid_location(self):
+    # def _is_valid_location(self, tile_y, tile_x, tile_z):
+
+    #     grid_width = self._map.shape[1]
         
-        if self._map[self.y][self.x][self.z] != 0:
-            return False
+    #     # if agent is trying to place a brick in non-empty location
+    #     if (self._map[self.y][self.x][self.z] != 0):
+    #         return False
         
-        if self.y - 1 >= 0 and self._map[self.y-1][self.x][self.z] == 0:
-            return False
+    #     # if the location underneath the current location is empty
+    #     # i.e. brick will hand in the air so this is not a valid location
+    #     if self.y - 1 >= 0 and self._map[self.y-1][self.x][self.z] == 0:
+    #         return False
+
+    #     if self.x + tile_x >= grid_width:
+    #         return False
+
+    #     if self.y + tile_y >= grid_width:
+    #         return False 
+
+    #     if self.z + tile_z >= grid_width:
+    #         return False
                 
-        return True
+    #     return True
 
     def _move_the_agent(self):
-            
-            
-            if self.x + 1 > 9 and self.z + 1 > 9:
-                self.x = 0
-                self.z = 0
-                self.y += 1
-            elif self.x + 1 > 9:
+            """
+                Move the agent to a valid location on the map
+            """
+            # primary movement is along x-axis
+            if self.x > 9:
                 self.x = 0
                 self.z += 1
-            else:
-                self.x += 1
+
+                if self.z > 9:
+                    self.x = 0
+                    self.z = 0
+                    self.y += 1
             
-            if self.y > 9:
-                self.y = 0
-                # self.x = 0
-                # self.z = 0
+                    if self.y > 9:
+                        self.y = 0
+                        # self.x = 0
+                        # self.z = 0

@@ -44,10 +44,12 @@ class LegoPCGEnv3D(gym.Env):
         # Get the next state number
         observation = self.rep.get_observation()
         new_stats = {}
-        new_stats['new_location'] = [self.rep.y, self.rep.x, self.rep.z]
+        # new_stats['new_location'] = [self.rep.y, self.rep.x, self.rep.z]
+        new_stats['new_location'] = self.rep.predicted_location
         new_stats['punish'] = self.rep.punish
         new_stats['brick_added'] = self.rep.brick_added
         new_stats['num_of_bricks'] = self.rep.num_bricks
+        new_stats['total_bricks'] = self.config.get("total_bricks")
         new_stats["map"] = self.rep._map
         old_stats = {}
         # old_stats['old_location'] = self.rep.old_location
@@ -59,10 +61,11 @@ class LegoPCGEnv3D(gym.Env):
 
         info = {}
         info['solved'] = done
-        info['location'] = [self.rep.y, self.rep.x, self.rep.z]
+        # info['location'] = [self.rep.y, self.rep.x, self.rep.z]
+        info['location'] = self.rep.predicted_location
         info["num_of_bricks"] = self.rep.num_bricks
         info["brick_added"] = self.rep.brick_added
-        info["block_details"] = self.rep.block_details
+        info["brick_details"] = self.rep.brick_details
 
         # save the map so that it can be used to write dat file
         if done:
