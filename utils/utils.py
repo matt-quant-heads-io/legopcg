@@ -8,34 +8,41 @@ import torch
 
 
 
-LegoDimsDict = {
+lego_dims_dict = {
     "empty" : [0,0,0],
     "3005" : [1,1,1], # x,y,z dims
     "3004" : [2,1,1],
     "3622" : [3,1,1],
-    "3002" : [3,1,2]
+    "3003" : [2,1,2],
+    "3002" : [3,1,2],
 }
 
 
 onehot_index_to_onehot_map = {
-    0 : [0,0,0,0],    
-    1 : [0,0,0,1],
-    2: [0,0,1,0],
-    3: [0,1,0,0]
+    0 : [0,0,0,0,0,1],    
+    1 : [0,0,0,0,1,0],
+    2:  [0,0,0,1,0,0],
+    3:  [0,0,1,0,0,0],
+    4:  [0,1,0,0,0,0],
+    5:  [1,0,0,0,0,0],
 }
 
 str_to_char_map = { 
     'empty': 'w',    
-    '3005': 'a',
-    '3004': 'b',
-    '3622': 'c'
+    '3005':  'a',
+    '3004':  'b',
+    '3622':  'c',
+    "3003" : 'd',
+    "3002" : 'e',
 }
 
 char_to_str_map = {
+    'w': 'empty',
     'a' : '3005',
     'b' : '3004',
     'c' : '3622',
-    'w': 'empty'
+    'd' : '3003',
+    'e' : '3002',
 }
 
 def getBlockName(char):
@@ -45,14 +52,18 @@ str_to_onehot_index_map = {
     'empty': 0,    
     '3005': 1,
     '3004': 2,
-    '3622': 3
+    '3622': 3,
+    "3003" : 4,
+    "3002" : 5
 }
 
 onehot_index_to_str_map = { 
     0 : 'empty',    
     1 : '3005',
     2: '3004',
-    3: '3622'
+    3: '3622',
+    4: '3003',
+    5: '3002'
 }
 
 onehot_index_to_str_map = {
@@ -63,10 +74,12 @@ onehot_index_to_char_map = {
     0 : 'w',
     1 : 'a',
     2 : 'b',
-    3 : 'c'
+    3 : 'c',
+    4 : 'd',
+    5 : 'e'
 }
 
-def convert_one_hot_to_char(one_hot_map):
+def convert_one_hot_to_char(one_hot_map : np.ndarray):
     char_map = []
 
     for y in range(len(one_hot_map)):
@@ -75,7 +88,7 @@ def convert_one_hot_to_char(one_hot_map):
                 char_tile = onehot_index_to_char_map[one_hot_map[y][x][z]]
                 char_map.append(char_tile)
 
-    return np.array(char_map).reshape((10,10,10))
+    return np.array(char_map).reshape(one_hot_map.shape)
     
 def convertOneHotToString(onehot):
     str_map = []
@@ -195,16 +208,16 @@ def cleanup_dir(dir_path):
         print("Directory does not exist, skipping cleanup")
 
 
-def write_curr_obs_to_dir_path(obs_one_hot, dir_path, curr_step_num, lego_block_dims):
+def write_curr_obs_to_dir_path(env_map, dir_path, env_num, lego_block_dims):
     # cleanup_dir(dir_path)
-    char_map = convert_one_hot_to_char(obs_one_hot)
-    f = open(dir_path+'/step_'+str(curr_step_num)+'.txt', "a")
+    char_map = convert_one_hot_to_char(env_map)
+    f = open(dir_path + '/step_'+ env_num +'.txt', "a")
     f.write(str(char_map))
     f.close()
-    generate_dat_file(char_map, dir_path,curr_step_num,lego_block_dims)
+    generate_dat_file(char_map, dir_path,env_num,lego_block_dims)
 
-def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
-    f = open(dir_path+'/step_'+str(curr_step_num)+'.ldr', "a")
+def generate_dat_file(char_map, dir_path,env_num, lego_block_dims):
+    f = open(dir_path +'/step_'+ env_num +'.ldr', "a")
     f.write("0\n")
     f.write("0 Name: New Model.ldr\n")
     f.write("0 Author:\n")
@@ -215,9 +228,11 @@ def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
     start_block_name = char_to_str_map[start_block_char]
     start_block_dimensions = lego_block_dims[start_block_name]
     
-    for y in range(len(char_map[0])):
-        for x in range(len(char_map)):
-            for z in range(len(char_map[0][0])):
+    y_range, x_range, z_range = char_map.shape
+
+    for y in range(y_range):
+        for x in range(x_range):
+            for z in range(z_range):
                 char = char_map[y][x][z]
 
                 if (char != 'w'):
@@ -226,27 +241,34 @@ def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
                     current_xyz_dims = lego_block_dims[lego_block_name]
 
                     # Along x-dirn
-                    factor = 0
-                    if (start_block_dimensions[0] != 0):
-                        if (current_xyz_dims[0] > start_block_dimensions[0]):
-                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10
-                        elif (current_xyz_dims[0] < start_block_dimensions[0] ): # was >0
-                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10  
-                            
+                    x_factor = abs(current_xyz_dims[0] - start_block_dimensions[0]) * 10
+                    z_factor = abs(current_xyz_dims[2] - start_block_dimensions[2]) * 10
+                    # if (start_block_dimensions[0] != 0):
 
+                    #     if (current_xyz_dims[0] > start_block_dimensions[0]):
+                    #         factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10
+                    #     elif (current_xyz_dims[0] < start_block_dimensions[0] ): # was >0
+                    #         factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10  
+
+
+                    x_lego = x * 20 + x_factor
+                    y_lego = (y+1) * -24  
+                    z_lego = z * 20 + z_factor
                     
-                        
-                    x_lego = x * 20 + factor
-                    y_lego = y * -24  
+                    # z direction moves by 10 units    
+                    # x_lego = x * factor
+                    # y direction moves by 24 units
+                    # y_lego = (y+1) * -24  
                     # y_lego = y * 24 * currentXYZDims[1] 
-                    z_lego = z * 20 
+                    # z direction moves by 10 units
+                    # z_lego = z * factor
 
                     
 
                 if (char == 'w'):
                     a=1
 
-                elif (char == 'a'):
+                else :
                     f.write("1 7 ")
                     
                     f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
@@ -254,19 +276,19 @@ def generate_dat_file(char_map, dir_path,curr_step_num, lego_block_dims):
                     f.write(getBlockName(char) + ".dat")
                     f.write("\n")
 
-                elif (char == 'b'):
-                    f.write("1 7 ")
-                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
-                    f.write("1 0 0 0 1 0 0 0 1 ")
-                    f.write(getBlockName(char) + ".dat")
-                    f.write("\n")
+                # elif (char == 'b'):
+                #     f.write("1 7 ")
+                #     f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
+                #     f.write("1 0 0 0 1 0 0 0 1 ")
+                #     f.write(getBlockName(char) + ".dat")
+                #     f.write("\n")
 
-                elif (char == 'c'):
-                    f.write("1 7 ")
-                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
-                    f.write("1 0 0 0 1 0 0 0 1 ")
-                    f.write(getBlockName(char) + ".dat")
-                    f.write("\n")
+                # elif (char == 'c'):
+                #     f.write("1 7 ")
+                #     f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
+                #     f.write("1 0 0 0 1 0 0 0 1 ")
+                #     f.write(getBlockName(char) + ".dat")
+                #     f.write("\n")
                 
     f.close()   
 
@@ -499,7 +521,7 @@ def create_dir(path):
 #     else:
 #         print("Error in rendering the scene in blender")
     
-def render_in_leocad(base_path, env_num, lego_block_details):
+def render_in_leocad(base_path, env_num, lego_brick_details):
     """
         Renders the lego block coords in leocad
     """
@@ -507,25 +529,33 @@ def render_in_leocad(base_path, env_num, lego_block_details):
     leocad_path = os.path.join(base_path, f"leocad_{env_num:02d}")
     image_path = os.path.join(base_path, f"images_{env_num:02d}")
 
-    block_counter = len(lego_block_details)
+    block_counter = len(lego_brick_details)
 
     if block_counter == 1:
         create_dir(leocad_path)
         create_dir(image_path)
 
     # counter = 0 
-    factor = 0
+    factor = 10
 
     dat_file = os.path.join(leocad_path, f'block_{block_counter:02d}.dat')
     png_file = os.path.join(image_path, f'block_{block_counter:02d}.png')
                              
     with open(dat_file, 'w') as f:
-        for y, x, z, brick_type in lego_block_details:
+        _, _, _, first_block = lego_brick_details[0]
+        lego_block_name = onehot_index_to_str_map[first_block]
+        first_block_dims = lego_dims_dict[lego_block_name]
+
+        for y, x, z, brick_type in lego_brick_details:
             lego_block_name = onehot_index_to_str_map[brick_type]
-            # counter += 1 
-            x_lego = x * 20 + factor
-            y_lego = y * -24  
-            z_lego = z * 20 
+            current_xyz_dims = lego_dims_dict[lego_block_name]
+            
+            x_factor = abs(current_xyz_dims[0] - first_block_dims[0]) * 10
+            z_factor = abs(current_xyz_dims[2] - first_block_dims[2]) * 10
+
+            x_lego = x * 20 + x_factor
+            y_lego = (y+1) * -24  
+            z_lego = z * 20 + z_factor
 
             line1 = ("1 7 ")
             line2 = str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' '
@@ -551,7 +581,7 @@ def render_in_leocad(base_path, env_num, lego_block_details):
         '''
         os.system(leocad_command)
     
-    generate_png()
+    # generate_png()
 
 def create_gif(base_path):
     """

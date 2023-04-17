@@ -62,7 +62,7 @@ class LegoProblem(Problem3D):
             print("Total reward: ",  self.total_reward)
             self.reward_history.append(self.total_reward)
             self.total_reward = 0 
-            self.total_height = 0
+            # self.total_height = 0
             return True
         
         return False

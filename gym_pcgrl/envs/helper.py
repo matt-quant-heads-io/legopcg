@@ -503,7 +503,9 @@ class LegoReward:
         if self.rep_type == "turtle3d":
             return self._turtle_rep_reward(new_stats, old_stats)
         elif self.rep_type == "wide3d":
-            return self._wide_rep_reward(new_stats, old_stats)
+            # return self._wide_rep_reward(new_stats, old_stats)
+            return self._narrow_rep_reward(new_stats, old_stats) 
+            # return self._turtle_rep_reward(new_stats, old_stats)
         else:
             return self._narrow_rep_reward(new_stats, old_stats) 
 
@@ -514,43 +516,20 @@ class LegoReward:
         punish = new_stats['punish']
         brick_added = new_stats['brick_added']
 
-        # map = new_stats["map"]
-        num_bricks = 100 - new_stats["num_of_bricks"]
+        num_bricks = new_stats['total_bricks'] - new_stats["num_of_bricks"]
 
         if brick_added:
             
             self.total_height += y
-            reward += self.total_height/(num_bricks * 1000)
+            reward += self.total_height/(num_bricks * 100)
 
             if punish:
                 reward = -reward
+                # reward = 0 
         else:
-            reward = 0.00001 
+            reward = 0.001 
 
         return reward
-
-    def _wide_rep_reward(self, new_stats, old_stats):
-
-        reward = 0
-        y, _, _ = new_stats['new_location']
-        punish = new_stats['punish']
-        brick_added = new_stats['brick_added']
-
-        # map = new_stats["map"]
-        num_bricks = 100 - new_stats["num_of_bricks"]
-
-        if brick_added:
-            
-            self.total_height += y
-            reward += self.total_height/(num_bricks * 1000)
-
-            if punish:
-                reward = -reward
-        else:
-            reward = 0.00001 
-
-        return reward
-
 
     def _turtle_rep_reward(self, new_stats, old_stats):
 
@@ -594,9 +573,10 @@ class LegoReward:
 
             if punish:
                 reward = -reward
+                # reward = 0
         else:
             # reward = 0.1 * (y/9)
-            reward = 0.00001 
+            reward = 0.001 
 
         return reward
 
