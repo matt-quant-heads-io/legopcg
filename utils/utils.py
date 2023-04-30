@@ -535,27 +535,25 @@ def render_in_leocad(base_path, env_num, lego_brick_details):
         create_dir(leocad_path)
         create_dir(image_path)
 
-    # counter = 0 
-    factor = 10
-
     dat_file = os.path.join(leocad_path, f'block_{block_counter:02d}.dat')
     png_file = os.path.join(image_path, f'block_{block_counter:02d}.png')
                              
     with open(dat_file, 'w') as f:
-        _, _, _, first_block = lego_brick_details[0]
-        lego_block_name = onehot_index_to_str_map[first_block]
-        first_block_dims = lego_dims_dict[lego_block_name]
+        # _, _, _, first_block = lego_brick_details[0]
+        # lego_block_name = onehot_index_to_str_map[first_block]
+        # first_block_dims = lego_dims_dict[lego_block_name]
 
         for y, x, z, brick_type in lego_brick_details:
+            # f.write(f"{x},{y},{z},{brick_type}\n")
             lego_block_name = onehot_index_to_str_map[brick_type]
             current_xyz_dims = lego_dims_dict[lego_block_name]
             
-            x_factor = abs(current_xyz_dims[0] - first_block_dims[0]) * 10
-            z_factor = abs(current_xyz_dims[2] - first_block_dims[2]) * 10
+            # x_factor = abs(current_xyz_dims[0] - first_block_dims[0]) * 10
+            # z_factor = abs(current_xyz_dims[2] - first_block_dims[2]) * 10
 
-            x_lego = x * 20 + x_factor
+            x_lego = x * 20 + (current_xyz_dims[0] * 20)//2
             y_lego = (y+1) * -24  
-            z_lego = z * 20 + z_factor
+            z_lego = z * 20 + (current_xyz_dims[2] *20)//2
 
             line1 = ("1 7 ")
             line2 = str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' '

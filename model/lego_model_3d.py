@@ -3,7 +3,8 @@
 # from stable_baselines3.common.env_util import DummyVecEnv
 from typing import Callable, Dict, Tuple
 import numpy as np 
-import os 
+# import os 
+import sys
 import torch as th 
 import torch.nn as nn
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -141,9 +142,9 @@ class LegoModel3D(PPOModel):
             # env.seed(seed)
             # env.action_space.seed(seed)
             # env.observation_space.seed(seed)
-            # env = LegoPCGEnv3D(self.train_config, representation="wide3d")
+            env = LegoPCGEnv3D(self.train_config, representation="wide3d")
             # env = LegoPCGEnv3D(self.train_config, representation="turtle3d")
-            env = LegoPCGEnv3D(self.train_config, representation="narrow3d")
+            # env = LegoPCGEnv3D(self.train_config, representation="narrow3d")
             env = Cropped3D(env)
             return env
 
