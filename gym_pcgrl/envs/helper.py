@@ -518,65 +518,64 @@ class LegoReward:
 
         num_bricks = new_stats['total_bricks'] - new_stats["num_of_bricks"]
 
-        if brick_added:
+
+        if punish:
+            reward = -0.01
+        elif brick_added:
             
             self.total_height += y
-            reward += self.total_height/(num_bricks * 100)
-
-            if punish:
-                reward = -reward
-                # reward = 0 
+            reward = self.total_height/(num_bricks * 10)
         else:
-            reward = 0.001 
+            reward = -0.001 
 
         return reward
 
     def _turtle_rep_reward(self, new_stats, old_stats):
-
         reward = 0
-        y, x, z = new_stats['new_location']
+        y, _, _ = new_stats['new_location']
         punish = new_stats['punish']
         brick_added = new_stats['brick_added']
 
-        # if punish:
-        #     if num_bricks > 0:
-        #         self.total_height += y
-        #         reward -= self.total_height/(num_bricks * 1000)
-        #     else:
-        #         reward -= 0.9
-        # else:
-        #     # longest_path = get_lego_reward(map, y,x,z)
-        #     # reward += 0.001 * longest_path
-        #     # reward += 1 - ((9 - y)/9)**0.9
-        #     # average height
-        #     if num_bricks > 0:
-        #         self.total_height += y
-        #         reward += self.total_height/(num_bricks * 1000)
-        #     else:
-        #         reward = 0.1
+        num_bricks = new_stats['total_bricks'] - new_stats["num_of_bricks"]
 
-        # think about rewarding going down when bricks have been laid 
-        # till top in a certain column
-        
-        
-        if brick_added:
 
-            # distance from center
-            x_dist = max(abs(5 - x), 1)
-            z_dist = max(abs(5 - z), 1)
-
-            # father they are, lesser the reward
-            # reward = (5/x_dist + 5/z_dist + y/9) * 0.1
-            # reward = (5/x_dist + 5/z_dist) * 0.01
+        if punish:
+            reward = -0.01
+        elif brick_added:
             
-            reward = (1/x_dist + 1/z_dist + 5 * y/9)
-
-            if punish:
-                reward = -reward
-                # reward = 0
+            self.total_height += y
+            reward = self.total_height/(num_bricks * 10)
         else:
-            # reward = 0.1 * (y/9)
-            reward = 0.001 
+            reward = 0 
 
         return reward
+
+        # reward = 0
+        # y, x, z = new_stats['new_location']
+        # punish = new_stats['punish']
+        # brick_added = new_stats['brick_added']
+
+        # # think about rewarding going down when bricks have been laid 
+        # # till top in a certain column
+        
+        
+        # if punish:
+        #     reward = -0.01
+
+        # elif brick_added:
+
+        #     # distance from center
+        #     x_dist = max(abs(5 - x), 1)
+        #     z_dist = max(abs(5 - z), 1)
+
+        #     # father they are, lesser the reward
+        #     # reward = (5/x_dist + 5/z_dist + y/9) * 0.1
+        #     # reward = (5/x_dist + 5/z_dist) * 0.01
+            
+        #     reward = (1/x_dist + 1/z_dist + 5 * y/9)
+        # else:
+        #     # reward = 0.1 * (y/9)
+        #     reward = 0
+
+        # return reward
 

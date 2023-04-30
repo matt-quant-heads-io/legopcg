@@ -119,7 +119,6 @@ class NarrowRepresentation3D(Representation3D):
 
         # should you move the agent if punish is true? Think about it    
         # self._move_the_agent()
-
         return
     
     # def _is_valid_location(self, tile_y, tile_x, tile_z):
@@ -162,5 +161,5 @@ class NarrowRepresentation3D(Representation3D):
             
                     if self.y > 9:
                         self.y = 0
-                        # self.x = 0
+                        # self.x +=1 
                         # self.z = 0

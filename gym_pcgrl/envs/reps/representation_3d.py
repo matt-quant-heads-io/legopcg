@@ -143,7 +143,11 @@ class Representation3D:
     def _is_valid_location(self, tile_y, tile_x, tile_z):
 
         grid_width = self._map.shape[1]
-        
+
+        # if (self._map[self.y][self.x][self.z] != 0):
+        #     return False   
+
+             
         if self.x + tile_x >= grid_width:
             return False
 
@@ -151,6 +155,11 @@ class Representation3D:
             return False 
 
         if self.z + tile_z >= grid_width:
+            return False
+        
+        if (np.any(self._map[self.y, 
+                             self.x:self.x+tile_x, 
+                             self.z:self.z+tile_z] != 0)):
             return False
         
         # if the location underneath the current location is empty
@@ -177,9 +186,10 @@ class Representation3D:
         # remove the existing brick and make space for the new one
         # Note: This approach does not work for turtle representation as it gets
         # stuck in a loop of removing and placing bricks at the same location
+        # allow replcement but give some negative reward for this action ??? 
 
-        if (self._map[self.y][self.x][self.z] != 0):
-            return False
+        # if (self._map[self.y][self.x][self.z] != 0):
+        #     return False
             # brick_type = int(self._map[self.y][self.x][self.z])
             # # get the original location where brick was placed
             # o_y, o_x, o_z = self.brick_locations[(self.y,self.x,self.z)]

@@ -1,10 +1,7 @@
 import gym
-import gym_pcgrl
-
 import numpy as np
-import math
-import os
-import sys
+import torch
+from torch.nn.functional import normalize
 
 # clean the input action
 get_action = lambda a: a.item() if hasattr(a, "item") else a
@@ -288,6 +285,8 @@ class Cropped3D(gym.Wrapper):
         obs, reward, done, info = self.env.step(action)
         # print(f"obs is: {obs}")
         obs = self.transform(obs, info['location'])
+        obs = torch.tensor(obs, dtype=torch.float32)
+        obs = normalize(obs)
         # print(f"obs after transform: {obs}")
         return obs, reward, done, info
 
