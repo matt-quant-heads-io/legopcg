@@ -1,0 +1,12 @@
+
+	leocad																		\
+		--height "4096"													\
+		--width "4096"														\
+		--camera-angles 30 0	\
+		--shading "full" 														\
+		--line-width "1" 											\
+		--aa-samples "8" 									\
+		--image "tmp-test.png"				\
+		tmp.mpd																		
+	wait
+

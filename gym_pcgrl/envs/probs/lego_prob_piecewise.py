@@ -1,4 +1,5 @@
 # package imports
+import math
 import matplotlib.pyplot as plt 
 
 # local import 
@@ -23,23 +24,30 @@ class LegoProblemPiecewise(LegoProblem):
 
     def get_reward(self, new_stats, old_stats, reward_param):
         reward = 0
-        punish = new_stats['punish']
+        #punish = new_stats['punish']
 
         # best reward condition so far 
-        if punish:
-            reward = -0.5
-        else:
-            reward = new_stats[reward_param] - old_stats[reward_param]
+        #if punish:
+        #    reward = -0.5
+        #else:
+        #    reward = new_stats[reward_param] - old_stats[reward_param]
 
+        reward = new_stats[reward_param] - old_stats[reward_param]
         # Print Reward graph -> Accumulate rewards
         # print("Reward: ", reward)
         self.total_reward += reward
 
         return reward
     
-    def get_episode_over(self, new_stats, num_steps):    
+    def get_episode_over(self, new_stats, episode, num_blocks, steps_per_ep = None):    
         
-        if new_stats['step'] >=  num_steps:
+        if steps_per_ep == None:
+            steps_per_ep = math.sqrt(episode) * num_blocks
+            #steps_per_ep = episode//4
+    
+        #print(steps_per_ep)
+
+        if new_stats['step'] >=  steps_per_ep:
             # print("episode over: ", representation.num_of_bricks)
             # print("episode over: ", np.count_nonzero(representation._map))
             # print("Total reward: ",  self.total_reward)

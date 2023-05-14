@@ -7,28 +7,7 @@ import imageio
 import re
 import torch 
 import matplotlib.pyplot as plt
-
-
-class LegoPiece():
-    def __init__(self, dimsNum, x, y, z):
-        super().__init__()
-        #self.dims = LegoDimsDict[dimsNum]
-        self.x = x
-        self.y = y
-        self.z = z
-
-        self.next_x = x
-        self.next_y = y
-        self.next_z = z
-
-    def reset(i):
-        self.x = i
-        self.y = 0
-        self.z = 0
-
-        
-
-
+import imageio
 
 
 
@@ -37,7 +16,9 @@ LegoDimsDict = {
     "3005" : [1,1,1], # x,y,z dims
     "3004" : [2,1,1],
     "3622" : [3,1,1],
-    "3002" : [3,1,2]
+    "3002" : [3,1,2],
+    "3003" : [2,1,2],
+    "11212" : [3,1,3],
 }
 
 
@@ -48,20 +29,6 @@ onehot_index_to_onehot_map = {
     3: [0,1,0,0]
 }
 
-str_to_char_map = { 
-    'empty': 'w',    
-    '3005': 'a',
-    '3004': 'b',
-    '3622': 'c'
-}
-
-char_to_str_map = {
-    'a' : '3005',
-    'b' : '3004',
-    'c' : '3622',
-    'w': 'empty'
-}
-
 def getBlockName(char):
     return char_to_str_map[char]
 
@@ -69,14 +36,18 @@ str_to_onehot_index_map = {
     'empty': 0,    
     '3005': 1,
     '3004': 2,
-    '3622': 3
+    '3622': 3,
+    '3003': 4,
+    '11212': 5,
 }
 
 onehot_index_to_str_map = { 
     0 : 'empty',    
     1 : '3005',
     2: '3004',
-    3: '3622'
+    3: '3622',
+    4: '3003',
+    5: '11212',
 }
 
 onehot_index_to_str_map = {
@@ -374,99 +345,111 @@ def get_device() -> str:
     return device
 
 
-def save_map_piecewise(obs_one_hot, dir_path, curr_step_num, lego_block_dims, curr_reward, rewards = None):
-    if not os.path.exists(dir_path + "/piecewise"):
-            os.makedirs(dir_path + "/piecewise")
+def renderpng(mpdfile, imgname):
+    ##angle was 30
+    leocad_command = f'''
+	    leocad	\
+		--height "2046"	\
+		--width "2046"	\
+		--camera-angles 30 30	\
+		--shading "full" \
+		--line-width "2" \
+		--aa-samples "8" \
+		--image "{imgname}" \
+		{mpdfile}																	
 
-    iter = 0
-    savedir = dir_path + "/piecewise/" + str(iter) + "/"
+    '''
+    os.system(leocad_command)
 
-    if curr_step_num == 0:
-        while (os.path.exists(savedir)):
-            iter+=1
-            savedir = dir_path + "/piecewise/" + str(iter) + "/"
-        os.makedirs(savedir)
-    else:
-        while(os.path.exists(savedir)):
-            iter += 1
-            savedir = dir_path + "/piecewise/" + str(iter) + "/"
-        savedir = dir_path + "/piecewise/" + str(iter-1) + "/"
-        if not (os.path.exists(savedir)):
-            os.makedirs(savedir)
+def save_arrangement(blocks, dir_path, curr_step_num, curr_reward, rewards = None, render = False, episode = None):
+
+
+    if not os.path.exists(dir_path + "mpds"):
+            os.makedirs(dir_path + "mpds")
+
+    if not os.path.exists(dir_path + "images"):
+            os.makedirs(dir_path + "images")
+
+    savedir = dir_path + "mpds/"
+    imgdir = dir_path + "images/"
 
     if rewards:
         x = range(len(rewards))
-        plt.title("rewards")
+        plt.title("avg_height")
         plt.plot(x, rewards)
-        plt.savefig(savedir + "rewards.png")
+        plt.savefig(dir_path + "/rewards.png")
 
-    char_map = convert_one_hot_to_char(obs_one_hot)
-    ftxt = open(savedir + str(curr_step_num) + "_"+ curr_reward +'.txt', "a")
-    ftxt.write(str(char_map))
-    ftxt.close()
-    
-    f = open(savedir + str(curr_step_num) + "_"+ curr_reward +'.dat', "a")
+    filename = f"{curr_step_num:05}"#str(curr_step_num) 
+    if episode != None:
+        filename = f"{episode:04}_" + filename
+    if curr_reward != None:
+        filename += "_"+ str(curr_reward) 
+    f = open(savedir + filename +'.mpd', "a")
     f.write("0\n")
     f.write("0 Name: New Model.ldr\n")
     f.write("0 Author:\n")
     f.write("\n")
 
+
+    for block in blocks:
+        lego_block_name = block.block_name
+        current_xyz_dims = block.dims
+        block_color = "7 "
+        if block.is_next_block :
+            block_color = "14 "
+        elif block.is_curr_block:
+            if block.error == "stay":
+                block_color = "25 "
+            elif block.error == "bounds":
+                block_color = "69 "
+            elif block.error == "overlap":
+                block_color = "1 "
+            else:
+                block_color = "46 "
+
+        y_offset = -24
+
+        x_lego = block.x * 20  + 10*(LegoDimsDict[lego_block_name][0]-1) - 5*10
+        y_lego = block.y * -24  + y_offset + 10*(LegoDimsDict[lego_block_name][1]-1)
+        z_lego = block.z * 20 + 10*(LegoDimsDict[lego_block_name][2]-1) - 5*10
+        
+        f.write("1 ")
+        f.write(block_color)
+        f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
+        f.write("1 0 0 0 1 0 0 0 1 ")
+        f.write(lego_block_name + ".dat")
+        f.write("\n")
+
+    f.close() 
+    if render: 
+        renderpng(savedir + filename + ".mpd", imgdir + filename + ".png")
+
     
-    start_block_char = char_map[0][0][0]
-    start_block_name = char_to_str_map[start_block_char]
-    start_block_dimensions = lego_block_dims[start_block_name]
+
+
+def animate(dir, iter = None):
+    print("animating " + str(iter))
+    images = []
+
+    savedir = dir
+    if iter != None:
+        savedir = savedir + str(iter) + "/"
+    if not os.path.exists(savedir):
+            print("making animation directory for " + str(iter))
+            os.makedirs(savedir)
+
+    filenames = sorted([f for f in os.listdir(savedir + "images") if f.split(".")[-1] == "png"])
+    images = []
+    for filename in filenames:
+        images.append(imageio.imread(savedir + "images/" + filename))
+    print("filenames appended " + str(iter))
     
-    for y in range(len(char_map[0])):
-        for x in range(len(char_map)):
-            for z in range(len(char_map[0][0])):
-                char = char_map[y][x][z]
+    savename = "animation.gif"
+    if iter != None:
+        savename = str(iter) + "_" + savename
 
-                if (char != 'w'):
-                    # Get Dimensions of Lego Block
-                    lego_block_name = char_to_str_map[char]
-                    current_xyz_dims = lego_block_dims[lego_block_name]
-
-                    # Along x-dirn
-                    factor = 0
-                    if (start_block_dimensions[0] != 0):
-                        if (current_xyz_dims[0] > start_block_dimensions[0]):
-                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10
-                        elif (current_xyz_dims[0] < start_block_dimensions[0] ): # was >0
-                            factor = (current_xyz_dims[0] - start_block_dimensions[0]) * 10  
-                            
-
-                    
-                        
-                    x_lego = x * 20 + factor
-                    y_lego = y * -24  
-                    # y_lego = y * 24 * currentXYZDims[1] 
-                    z_lego = z * 20 
-
-                    
-
-                if (char == 'w'):
-                    a=1
-
-                elif (char == 'a'):
-                    f.write("1 7 ")
-                    
-                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
-                    f.write("1 0 0 0 1 0 0 0 1 ")
-                    f.write(getBlockName(char) + ".dat")
-                    f.write("\n")
-
-                elif (char == 'b'):
-                    f.write("1 7 ")
-                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
-                    f.write("1 0 0 0 1 0 0 0 1 ")
-                    f.write(getBlockName(char) + ".dat")
-                    f.write("\n")
-
-                elif (char == 'c'):
-                    f.write("1 7 ")
-                    f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
-                    f.write("1 0 0 0 1 0 0 0 1 ")
-                    f.write(getBlockName(char) + ".dat")
-                    f.write("\n")
-                
-    f.close()   
+    print("filenames appended " + str(iter))
+    try:
+        imageio.mimsave(dir +  savename, images, fps = 5)
+    except:
+        return
