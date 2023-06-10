@@ -12,98 +12,67 @@ from gym_pcgrl.envs.reps.representation_3d import Representation3D
 
 
 class LegoBlock():
-    def __init__(self, dimsNum, rep):
+    def __init__(self, dimsNum, rep, block_idx):
         super().__init__()
         self.block_name = dimsNum
         self.block_num = ut.str_to_onehot_index_map[dimsNum]
         self.dims = LegoDimsDict[dimsNum]
-        self.x = random.randrange(self.dims[0]-1, rep.max_x-self.dims[0]+1)
-        self.y = 0
-        self.z = random.randrange(self.dims[2]-1, rep.max_z-self.dims[2]+1)
+        self.idx = block_idx
+
         self.rep = rep
         self.rotation = None #add this as rotation matrix
-        self.doesnotfit = False
+
         self.is_curr_block = False
         self.is_next_block = False
         self.error = None
-        curr_positions = []
-        for i in range(self.dims[0]):
-            for j in range(self.dims[0]):
-                for k in range(self.dims[0]):
-                    position = str(self.x + i) + str(self.y + j) + str(self.z + k)
-                    curr_positions.append(position)
+        self.x = random.randrange(self.dims[0]-1, rep.max_x-self.dims[0]+1)
+        self.y = self.rep.max_y-self.dims[1]
+        self.z = random.randrange(self.dims[2]-1, rep.max_z-self.dims[2]+1)
 
-        intersect = [pos for pos in curr_positions if pos in self.rep.block_positions]
-        
-        ctr = 0
-        while len(intersect) > 0 & ctr < 1000:
-            ctr+=1
+        self.next_x = self.x
+        self.next_y = self.y
+        self.next_z = self.z
+
+        self.last_x = self.x
+        self.last_y = self.y
+        self.last_z = self.z
+
+    def place(self):
+        self.rep.curr_block = self.idx
+
+        #random x random z, top of board
+        while self.rep._is_overlap():
             self.x = random.randrange(self.dims[0]-1, rep.max_x-self.dims[0]+1)
+            self.y = self.rep.max_y-self.dims[1]
             self.z = random.randrange(self.dims[2]-1, rep.max_z-self.dims[2]+1)
 
-            curr_positions = []
-            for i in range(self.dims[0]):
-                for j in range(self.dims[1]):
-                    for k in range(self.dims[2]):
-                        position = str(self.x + i) + str(self.y + j) + str(self.z + k)
-                        curr_positions.append(position)
-            intersect = [pos for pos in curr_positions if pos in self.rep.block_positions]
+            self.next_x = self.x
+            self.next_y = self.y
+            self.next_z = self.z
 
-        self.next_x = self.x
-        self.next_y = self.y
-        self.next_z = self.z
+            self.last_x = self.x
+            self.last_y = self.y
+            self.last_z = self.z
 
-        self.last_x = self.x
-        self.last_y = self.y
-        self.last_z = self.z
+        #fall to floor
+        self._fall()
 
-        if len(intersect) > 0:
-            self.doesnotfit = True
-        else:
-            rep.block_positions += list(set(curr_positions))
+        
+        
+    def _fall(self):
+
+  
+        self.rep.full_map = self.rep.get_full_map()
+        while not self.rep._is_connected(self.idx):
+ 
+            self.rep.full_map = self.rep.get_full_map()
+            self.y -= 1
+            self.next_y = self.y
+
+            
         
 
-    def reset(self):
-
-        self.x = random.randrange(self.dims[0]-1, self.rep.max_x-self.dims[0]+1)
-        self.y = 0
-        self.z = random.randrange(self.dims[2]-1, self.rep.max_z-self.dims[2]+1)
-        self.error = None
-
-        curr_positions = []
-        for i in range(self.dims[0]):
-            for j in range(self.dims[1]):
-                for k in range(self.dims[2]):
-                    position = str(self.x + i) + str(self.y + j) + str(self.z + k)
-                    curr_positions.append(position)
-
-
-        ctr = 0
-        while len([pos for pos in curr_positions if pos in self.rep.block_positions]) > 0 and ctr < 1000:
-            ctr += 1
-            self.x = random.randrange(self.dims[0]-1, self.rep.max_x-self.dims[0]+1)
-            self.z = random.randrange(self.dims[2]-1, self.rep.max_z-self.dims[2]+1)
-
-            curr_positions = []
-            for i in range(self.dims[0]):
-                for j in range(self.dims[1]):
-                    for k in range(self.dims[2]):
-                        position = str(self.x + i) + str(self.y + j) + str(self.z + k)
-                        curr_positions.append(position)
-
-
-        self.next_x = self.x
-        self.next_y = self.y
-        self.next_z = self.z
-
-        self.last_x = self.x
-        self.last_y = self.y
-        self.last_z = self.z
-
-        if len([pos for pos in curr_positions if pos in self.rep.block_positions]) > 0:
-            self.doesnotfit = True
-        else:
-            self.rep.block_positions += list(set(curr_positions))
+        
 
 class PiecewiseRepresentation(Representation3D):
     def __init__(self, train_cfg, savedir):
@@ -118,6 +87,7 @@ class PiecewiseRepresentation(Representation3D):
         self.savedir = savedir
         self.punish = train_cfg["punish"]
         self.punish_sum = 0
+        self.punish_multiple = train_cfg["punish_multiple"]
         self.reward_param = train_cfg["reward_param"]
         self.last_reward = 0
         self.curr_reward = 0
@@ -133,23 +103,30 @@ class PiecewiseRepresentation(Representation3D):
         self.blocks = []
         self.block_positions = []
 
-        for i in range(self.num_of_blocks):
-            #TODO: make sure all the blocks will fit
-            self.curr_block = i
-            if i < self.num_of_blocks//3:
+        for i in range(2):
+            block = LegoBlock("3031", self, i)
+            self.blocks.append(block)
+            block.place()
+        
+        for i in range(2,self.num_of_blocks):
+
+            blockname = ut.onehot_index_to_str_map[random.randint(1, 3)]
+            """
+            if i < self.num_of_blocks//4:
                 blockname = "3003"
-            elif i < 2*self.num_of_blocks//3:
+            elif i < 2*self.num_of_blocks//4:
                 blockname = "3004"
             else: 
                 blockname = "3005"
-            block = LegoBlock(blockname, self)
-            if block.doesnotfit:
-                pass
-            else:
-                self.blocks.append(block)
-        self.num_of_blocks = len(self.blocks)
+            """
+            block = LegoBlock(blockname, self, i)
+            self.blocks.append(block)
+            block.place()
+
         self.curr_block = 0
         self.blocks[0].is_curr_block = True
+
+        
 
         #self.full_map= self.get_full_map()
         self._map = self.get_map()
@@ -171,14 +148,29 @@ class PiecewiseRepresentation(Representation3D):
         self._last_map = np.copy(self._map)
         self.full_map= self.get_full_map()
 
-        self.block_positions = []
-        for i, block in enumerate(self.blocks):
-            self.curr_block = i
-            block.reset()
-            if block.doesnotfit:
-                self.blocks = self.blocks[:i] + self.blocks[i+1:]
+        self.blocks = []
+        
+        for i in range(2):
+            block = LegoBlock("3031", self, i)
+            self.blocks.append(block)
+            block.place()
+        
+        for i in range(2,self.num_of_blocks):
 
-        self.num_of_blocks = len(self.blocks)
+            blockname = ut.onehot_index_to_str_map[random.randint(1, 3)]
+            """
+            if i < self.num_of_blocks//4:
+                blockname = "3003"
+            elif i < 2*self.num_of_blocks//4:
+                blockname = "3004"
+            else: 
+                blockname = "3005"
+            """
+            block = LegoBlock(blockname, self, i)
+            self.blocks.append(block)
+            block.place()
+
+
         self.curr_block = 0
         self.punish_sum = 0
         self._map = self.get_map()
@@ -198,8 +190,9 @@ class PiecewiseRepresentation(Representation3D):
             to do: rotate clockwise, rotate counterclockwise
         """
         #return spaces.MultiDiscrete(nvec=[2*(self.max_x-1), 2*(self.max_y-1), 2*(self.max_z-1)])
-        return spaces.MultiDiscrete(nvec=[2*(self.max_x-1), 2*(self.max_y-1)])
-    
+        #return spaces.MultiDiscrete(nvec=[2*(self.max_x-1), 2*(self.max_y-1)])
+        return spaces.Discrete(5)
+
     def get_observation_space(self):
         """
             default: 3-D grid
@@ -225,6 +218,7 @@ class PiecewiseRepresentation(Representation3D):
                     for k in range(block.dims[2]):
                         map[block.x + i, block.y + j, block.z + k] = block.block_num
 
+        
         curr_block = self.blocks[self.curr_block]
         
         #TODO: add rotation component
@@ -355,7 +349,8 @@ class PiecewiseRepresentation(Representation3D):
         #TODO: add rotation component
         self._set_next_state(action)
         
-        if self.blocks[self.curr_block].next_x == self.blocks[self.curr_block].x and self.blocks[self.curr_block].next_y == self.blocks[self.curr_block].y:# and self.blocks[self.curr_block].next_z == self.blocks[self.curr_block].z:
+        
+        if self.blocks[self.curr_block].next_x == self.blocks[self.curr_block].x and self.blocks[self.curr_block].next_z == self.blocks[self.curr_block].z:# and self.blocks[self.curr_block].next_z == self.blocks[self.curr_block].z:
             self.punish_sum += float(1)/self.num_of_blocks
             self.blocks[self.curr_block].error = "stay" #orange
             self._end_update()
@@ -382,10 +377,7 @@ class PiecewiseRepresentation(Representation3D):
         while not self._all_connected():
             self._all_blocks_fall()
 
-            
-        if not self._all_connected():
-            print("not all connected line 365")
-            quit()
+
           
         self._end_update()
         return
@@ -413,24 +405,49 @@ class PiecewiseRepresentation(Representation3D):
 
         for x_offset in range(curr_block.dims[0]):
             for z_offset in range(curr_block.dims[2]):
-                for y_offset in range(curr_block.dims[1]):
-                    if self.get_full_map()[curr_block.x + x_offset,curr_block.y + y_offset-1,curr_block.z + z_offset] != 0:
-                        #print("is connected true: ", block_num)
-                        #print("pos: ", curr_block.x, curr_block.y, curr_block.z)
-                        return True
+                if self.get_full_map()[curr_block.x + x_offset, curr_block.y-1, curr_block.z + z_offset] != 0 :
+                    #print("is connected true: ", block_num)
+                    #print("pos: ", curr_block.x, curr_block.y, curr_block.z)
+                    return True
                     
         #print("is connected false: ", block_num)
         #print("pos: ", curr_block.x, curr_block.y, curr_block.z)
         return False
     
+    def _will_be_connected(self, block_num):
+        curr_block = self.blocks[block_num]
+        if curr_block.next_y == 0:
+            return True
+        
+        if curr_block.next_x +curr_block.dims[0]-1 >= self.max_x or curr_block.next_z+curr_block.dims[2]-1 >= self.max_z:
+            return True
+        else:
+
+            for x_offset in range(curr_block.dims[0]):
+                for z_offset in range(curr_block.dims[2]):
+                    if self.get_full_map()[curr_block.next_x + x_offset, curr_block.next_y-1, curr_block.next_z + z_offset] != 0 :
+                        #print("is connected true: ", block_num)
+                        #print("pos: ", curr_block.x, curr_block.y, curr_block.z)
+                        return True
+                        
+            #print("is connected false: ", block_num)
+            #print("pos: ", curr_block.x, curr_block.y, curr_block.z)
+            return False
+    
 
     def get_reward(self):
         if self.reward_param == "avg_height":
-            reward = self.punish_sum + self.get_height()
+            reward = self.get_height()
         elif self.reward_param == "avg_height_squared":
-            reward = sum([block.y*block.y for block in self.blocks])/len(self.blocks) + self.punish_sum
+            reward = sum([block.y*block.y for block in self.blocks])/len(self.blocks)
+        elif self.reward_param == "platform":
+            max_height = max([(block.y + block.dims[1] - 1) for block in self.blocks])
+            platform_size = sum([(block.dims[0] *block.dims[2]) for block in self.blocks if (block.y + block.dims[1] - 1) == max_height])
+            reward = max_height * platform_size
         if self.punish:
             reward -= self.punish_sum
+
+        
         return reward
         
 
@@ -441,12 +458,25 @@ class PiecewiseRepresentation(Representation3D):
         """
         # none = 0, left = 1 , right= 2, forward = 3, backward = 4
         #TO DO : do we punish if it's off the grid
-        curr_block = self.blocks[self.curr_block]
 
-        curr_block.next_x += action[0]-self.max_x-1
-        curr_block.next_y += action[1]-self.max_y-1
-        #curr_block.next_z += action[2]-self.max_z-1
-        curr_block.next_z = self.max_z-1
+        curr_block = self.blocks[self.curr_block]
+        if action == 0:
+            pass
+        elif action == 1:
+            curr_block.next_z = curr_block.z - 1#max(curr_block.z - 1, 0)
+        elif action == 2:
+            curr_block.next_z = curr_block.z + 1#min(curr_block.z + 1, self.max_z-curr_block.dims[2])
+        elif action == 3:
+            curr_block.next_x = curr_block.x - 1#max(curr_block.x - 1, 0)
+        elif action == 4:
+            curr_block.next_x = curr_block.x + 1#min(curr_block.x + 1, self.max_x-curr_block.dims[0])
+        else:
+            print("Invalid Action!!")
+
+        curr_block.next_y = self.max_y-1
+
+        while not self._will_be_connected(self.curr_block):
+            curr_block.next_y-=1
 
     def _move_to_state(self, block_num):
         curr_block = self.blocks[block_num]
@@ -462,14 +492,16 @@ class PiecewiseRepresentation(Representation3D):
     def _is_in_bounds(self, block_num):
         curr_block = self.blocks[block_num]
 
-
         for x_offset in range(curr_block.dims[0]):
             for y_offset in range(curr_block.dims[1]):
                 for z_offset in range(curr_block.dims[2]):
                     if curr_block.next_x + x_offset >=self.max_x or curr_block.next_y + y_offset >= self.max_y or curr_block.next_z + z_offset >= self.max_z:
+                        #print("returning false")
                         return False
                     if curr_block.next_x + x_offset <0 or curr_block.next_y + y_offset < 0 or curr_block.next_z + z_offset <0:
+                        #print("returning false")
                         return False
+        #print("returning true")
         return True
 
 
@@ -479,7 +511,7 @@ class PiecewiseRepresentation(Representation3D):
         for x_offset in range(curr_block.dims[0]):
             for y_offset in range(curr_block.dims[1]):
                 for z_offset in range(curr_block.dims[2]):
-                    pos = self.full_map[curr_block.next_x + x_offset,  curr_block.next_y + y_offset,  curr_block.next_z + z_offset]
+                    pos = self.get_full_map()[curr_block.next_x + x_offset,  curr_block.next_y + y_offset,  curr_block.next_z + z_offset]
                     if  pos > 0:
                         return True
         return False

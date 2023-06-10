@@ -47,31 +47,27 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         #    ut.save_arrangement(self.rep.blocks, self.savedir, self._iterations_total, ut.LegoDimsDict, self.reward_history[-1])
 
         self.reward_history.append(self.rep.get_reward())
-         
-        #if self._episode>1:
-        #    quit()
-
-        if self._episode % 100 == 0 or self.reward_history[-1] >= max(self.reward_history[:-1]) and self._episode > 20:
+    
+        if self._episode % 250 == 0 or self.reward_history[-1] >= max(self.reward_history[:-1]) and self._episode > 20 and self.reward_history[-1] > 0:
             ut.save_arrangement(self.rep.blocks, self.savedir + "training_imgs" + "/", self._episode, self.reward_history[-1], rewards = self.reward_history, render = True)   
             for i, blocks in enumerate(self.current_blocks):
                 ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode) +"/", i, curr_reward = None, render = True)
                 if i == len(self.current_blocks)-1:
                     ut.animate(self.savedir + "training_imgs/", self._episode)   
         
-        #float until end of episode
-        #build option - moves moves and then places
-        #each tile moves and then says "next tile"
-        
+
+        """
         if len(self.reward_history) >1 and self.reward_history[-2]-self.reward_history[-1] >= 2:
             for i, blocks in enumerate(self.last_blocks):
                 ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode-1)+"/", i, curr_reward = None, render = True)  
-            ut.animate(self.savedir + "training_imgs/", self._episode-1)
+            if len(self.last_blocks) > 0:
+                ut.animate(self.savedir + "training_imgs/", self._episode-1)
             
             for i, blocks in enumerate(self.current_blocks):
                 ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode) +"/", i, curr_reward = None, render = True)
                 if i == len(self.current_blocks)-1:
                     ut.animate(self.savedir + "training_imgs/", self._episode)
-            
+        """    
         """
         for i, blocks in enumerate(self.current_blocks):
             ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode) +"/", i, curr_reward = None, render = True)

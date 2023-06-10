@@ -1,7 +1,4 @@
-
-python main.py --mode train --config_id piecewise_config --model_id piecewise_model --reps_per_ep 10;
-python main.py --mode train --config_id piecewise_config --model_id piecewise_model --reps_per_ep 15;
-python main.py --mode train --config_id piecewise_config --model_id piecewise_model --reps_per_ep 20;
-python main.py --mode train --config_id piecewise_config --model_id piecewise_model --reps_per_ep 25;
-python main.py --mode train --config_id piecewise_config --model_id piecewise_model --reps_per_ep 30;
-
+python main.py --mode train --config_id piecewise_config --model_id piecewise_model --punish_multiple 0.85;
+python main.py --mode train --config_id piecewise_config --model_id piecewise_model --punish_multiple 1.1;
+python main.py --mode train --config_id piecewise_config --model_id piecewise_model --punish_multiple 1.3;
+python main.py --mode train --config_id piecewise_config --model_id piecewise_model --punish_multiple 0.95;

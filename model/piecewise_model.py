@@ -35,7 +35,8 @@ class LegoModelPiecewise(BaseModel):
         savedir +=  str(self.num_timesteps) + "_ts_" + str(self.train_config["num_of_blocks"]) + "_blocks_"  + str(self.train_config["observation_size"]) + "_obs"
         
         if self.train_config["punish"]:
-            savedir += "_punish"
+            savedir += "_punish"+ "_"+ str(self.train_config["punish_multiple"])
+        savedir+="new"
 
         iter = 0
         while os.path.exists(savedir +"_" + str(iter)):
