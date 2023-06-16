@@ -397,6 +397,20 @@ class PiecewiseRepresentation(Representation3D):
                     return False
         return True
 
+    def _get_covered_volume(self):
+        covered_volume = 0
+        for curr_block in self.blocks:
+            for x_offset in range(curr_block.dims[0]):
+                for z_offset in range(curr_block.dims[2]):
+                    if self.get_full_map()[curr_block.x + x_offset, curr_block.y-1, curr_block.z + z_offset] == 0 :
+                        curr_y = curr_block.y-1
+                        while curr_y >= 0:
+                            if self.get_full_map()[curr_block.x + x_offset, curr_y, curr_block.z + z_offset] == 0:
+                                covered_volume += 1
+                                curr_y -=1
+                            else:
+                                break
+        return covered_volume            
 
     def _is_connected(self, block_num):
         curr_block = self.blocks[block_num]
@@ -413,6 +427,8 @@ class PiecewiseRepresentation(Representation3D):
         #print("is connected false: ", block_num)
         #print("pos: ", curr_block.x, curr_block.y, curr_block.z)
         return False
+    
+    
     
     def _will_be_connected(self, block_num):
         curr_block = self.blocks[block_num]
@@ -444,12 +460,19 @@ class PiecewiseRepresentation(Representation3D):
             max_height = max([(block.y + block.dims[1] - 1) for block in self.blocks])
             platform_size = sum([(block.dims[0] *block.dims[2]) for block in self.blocks if (block.y + block.dims[1] - 1) == max_height])
             reward = max_height * platform_size
+        elif self.reward_param == "volume_covered":
+            reward = self._get_covered_volume()
+
+        else: 
+            print("Invalid Reward!")
+            quit()
         if self.punish:
             reward -= self.punish_sum
 
         
         return reward
         
+    
 
     def _set_next_state(self, action):
         """

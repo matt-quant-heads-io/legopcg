@@ -20,11 +20,11 @@ PIECEWISE_CONFIG = {
         },
         "num_of_blocks" : 20,#20,
         "observation_size" : 21, #try 7
-        "reward_param": "avg_height", #platform,
+        "reward_param": "volume_covered", #"avg_height", #platform,
         "reps_per_episode": 20, #try 10, 5, 20, 25, 30
         "scheduled_episodes": False,
         "punish": True,
-        "punish_multiple": .55
+        "punish_multiple": .6
     },
     
     "model" :{
