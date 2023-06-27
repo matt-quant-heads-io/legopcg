@@ -164,13 +164,11 @@ def animate(dir, iter = None):
     images = []
     for filename in filenames:
         images.append(imageio.imread(savedir + "images/" + filename))
-    print("filenames appended " + str(iter))
     
     savename = "animation.gif"
     if iter != None:
         savename = str(iter) + "_" + savename
 
-    print("filenames appended " + str(iter))
     try:
         imageio.mimsave(dir +  savename, images, fps = 5)
     except:

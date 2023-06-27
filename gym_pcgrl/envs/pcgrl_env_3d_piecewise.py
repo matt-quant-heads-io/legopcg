@@ -87,8 +87,9 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         #self._step = 0
         gc.collect()
         
-        return self.rep.get_observation()
+        obs = self.rep.get_observation()
 
+        return obs
     def step(self, action):
         #ut.save_arrangement(self.rep.blocks, self.savedir + str(self._episode) + "/", self._step, self.reward_history[-1], render = True)
 
@@ -127,6 +128,8 @@ class LegoPCGEnv3DPiecewise(gym.Env):
             #print("Episode Over: ", reward)#, np.count_nonzero(self.rep._map))
         
         observation = self.rep.get_observation()
+        #print(self._step)
+    
         return observation, reward, done, info
         
 

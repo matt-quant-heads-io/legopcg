@@ -42,9 +42,9 @@ class LegoBlock():
 
         #random x random z, top of board
         while self.rep._is_overlap():
-            self.x = random.randrange(self.dims[0]-1, rep.max_x-self.dims[0]+1)
+            self.x = random.randrange(self.dims[0]-1, self.rep.max_x-self.dims[0]+1)
             self.y = self.rep.max_y-self.dims[1]
-            self.z = random.randrange(self.dims[2]-1, rep.max_z-self.dims[2]+1)
+            self.z = random.randrange(self.dims[2]-1, self.rep.max_z-self.dims[2]+1)
 
             self.next_x = self.x
             self.next_y = self.y
@@ -87,7 +87,6 @@ class PiecewiseRepresentation(Representation3D):
         self.savedir = savedir
         self.punish = train_cfg["punish"]
         self.punish_sum = 0
-        self.punish_multiple = train_cfg["punish_multiple"]
         self.reward_param = train_cfg["reward_param"]
         self.last_reward = 0
         self.curr_reward = 0
@@ -130,7 +129,8 @@ class PiecewiseRepresentation(Representation3D):
 
         #self.full_map= self.get_full_map()
         self._map = self.get_map()
-        self._last_map = None
+        self._last_map = np.copy(self._map)
+    
         self.step = 0
         self.step_count = 0
         self.episode = 0
@@ -141,11 +141,11 @@ class PiecewiseRepresentation(Representation3D):
         
     def reset(self):
         # Reset all internal data structures being used
-        # self.final_map = np.copy(self._map)
+        self.final_map = np.copy(self._map)
         #super().reset(height, width, depth)
         self.last_reward = self.curr_reward
         self.curr_reward = self.get_reward()
-        self._last_map = np.copy(self._map)
+
         self.full_map= self.get_full_map()
 
         self.blocks = []
@@ -171,9 +171,11 @@ class PiecewiseRepresentation(Representation3D):
             block.place()
 
 
+
         self.curr_block = 0
         self.punish_sum = 0
         self._map = self.get_map()
+        self._last_map = np.copy(self._map)
     
         self.step = 0
         self.step_count = 0
@@ -198,16 +200,28 @@ class PiecewiseRepresentation(Representation3D):
             default: 3-D grid
         """
 
-        map_obs = spaces.Box(low = -2, high = 5, shape = (self.observation_size, self.observation_size, self.observation_size, 8), dtype = np.uint8)
-        self_obs = spaces.Box(low = 0, high = 1, shape = (1,3), dtype = np.uint8)
+        #map_obs = spaces.Box(low = -2, high = 5, shape = (self.observation_size, self.observation_size, self.observation_size, 8), dtype = np.uint8)
 
+        map_obs = spaces.Box(low = 0, high = 1, shape = (2+len(ut.onehot_index_to_str_map), self.observation_size, self.observation_size*3-2, self.observation_size), dtype = np.uint8)
+        self_obs = spaces.Box(low = 0, high = 1, shape = (1,3), dtype = np.uint8)
         return spaces.Dict(
             {
-                "block_num": self_obs,
+                "block_dims": self_obs,
                 "map": map_obs,
             }
         )
-        #return spaces.Box(low = 0, high = 1, shape = (self.observation_size, self.observation_size, self.observation_size, 8), dtype = np.uint8)
+    
+
+    def get_observation(self):
+        
+        if self._last_map is None:
+            self._last_map = self.get_map()
+        
+        return {
+                "map":self._last_map,
+                "block_dims":self.blocks[self.curr_block].dims
+
+            }
     
     def get_full_map(self):
         map = np.zeros((self.max_x, self.max_y, self.max_z), dtype = float)
@@ -230,7 +244,7 @@ class PiecewiseRepresentation(Representation3D):
 
         return map
     
-    def get_map(self) -> int:
+    def get_map(self):
 
         #for all of the i s immediately above/below, behind/in front, left/right of the current block, check if there is a block there and mark it.
 
@@ -251,8 +265,8 @@ class PiecewiseRepresentation(Representation3D):
         #obs[curr_block.x, curr_block.y, curr_block.z] = 5
         x_start = curr_block.x - obs_offset
         x_end = curr_block.x + obs_offset
-        y_start = curr_block.y - obs_offset
-        y_end = curr_block.y + obs_offset
+        y_start = curr_block.y - obs_offset*3
+        y_end = curr_block.y + obs_offset*3
         z_start = curr_block.z - obs_offset
         z_end = curr_block.z + obs_offset
         
@@ -297,31 +311,27 @@ class PiecewiseRepresentation(Representation3D):
             obs = np.concatenate([obs, z_append], axis = 2)
         if z_start >= 0 and z_end < self.max_z:
             obs = obs[:,:,z_start:z_end+1]
+    
+        assert obs.shape == (self.observation_size, self.observation_size*3-2, self.observation_size)
 
-        assert obs.shape == (self.observation_size, self.observation_size, self.observation_size)
-
-        #return obs
-
+        #use below for one hot
         obs = obs +2
-        final_obs = np.eye(8)[obs.astype(int)]#np.zeros((obs.shape[0], obs.shape[1], obs.shape[2], 8), type = float)
-        return final_obs
-
-    def get_observation(self):
-        return {
-            "map":self._last_map,
-            "block_num":self.blocks[self.curr_block].dims
-            }
+        onehot_obs = np.eye(len(ut.onehot_index_to_str_map)+2)[obs.astype(int)]#np.zeros((obs.shape[0], obs.shape[1], obs.shape[2], len()), type = float)
+        
+        final_obs =  np.transpose(onehot_obs, (3,0,1,2))#.astype(np.float32)
+        return(final_obs)
+            
     
     def _end_update(self):
             #self.punish = True
-            
+            self._last_map = np.copy(self._map)
             for block in self.blocks:
                 block.next_x = block.x
                 block.next_y = block.y
                 block.next_z = block.z
             
             self.curr_block = (self.curr_block + 1) % self.num_of_blocks
-            self._last_map = self._map
+            self._last_map = np.copy(self._map)
             self._map = self.get_map()
             self.full_map = self.get_full_map()
             #print("ending update ", self.step)
@@ -351,18 +361,18 @@ class PiecewiseRepresentation(Representation3D):
         
         
         if self.blocks[self.curr_block].next_x == self.blocks[self.curr_block].x and self.blocks[self.curr_block].next_z == self.blocks[self.curr_block].z:# and self.blocks[self.curr_block].next_z == self.blocks[self.curr_block].z:
-            self.punish_sum += float(1)/self.num_of_blocks
+            self.punish_sum += self.punish
             self.blocks[self.curr_block].error = "stay" #orange
             self._end_update()
 
         if not self._is_in_bounds(self.curr_block):
-            self.punish_sum += float(1)/self.num_of_blocks
+            self.punish_sum += self.punish
             self.blocks[self.curr_block].error = "bounds" #purple
             self._end_update()
             return
 
         if self._is_overlap():
-            self.punish_sum -= float(1)/self.num_of_blocks
+            self.punish_sum += self.punish
             self.blocks[self.curr_block].error = "overlap" #blue
             self._end_update()
             return
@@ -466,10 +476,8 @@ class PiecewiseRepresentation(Representation3D):
         else: 
             print("Invalid Reward!")
             quit()
-        if self.punish:
-            reward -= self.punish_sum
+        reward -= self.punish_sum
 
-        
         return reward
         
     
