@@ -75,12 +75,12 @@ import sys,os
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
 # add your config import here after the other config imports
-from .example_config import EXAMPLE_CONFIG
+from .podcnn_trainer_config import PODCNN_TRAINER_CONFIG
 
 CONFIGS_MAP = {
-    
-    # add your key, value pair at the end of the map
-    "example_config": EXAMPLE_CONFIG
+    ...
+    "podcnn_trainer_example": PODCNN_TRAINER_CONFIG,
+    ...
 }
 ```
 
