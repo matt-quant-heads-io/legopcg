@@ -86,29 +86,22 @@ CONFIGS_MAP = {
 
 
 ## Step 3: Defining a model
-All models inherit from the BaseModel class in model/base_model.py. Therefore, your model must implement the methods
+All models inherit from the BaseModel class in model/base_model.py. Therefore, your model must implement the following methods
 
 ```
 class BaseModel(ABC):
     """Abstract Model class that is inherited to all models"""
-    def __init__(self, cfg):
-        self.config = Config.from_json(cfg)
+
+    def __init__(self):
+        pass
 
     @abstractmethod
-    def load_data(self):
-        pass
+    def get_trainer_id(self):
+        raise NotImplementedError
 
     @abstractmethod
     def build(self):
-        pass
-
-    @abstractmethod
-    def train(self):
-        pass
-
-    @abstractmethod
-    def evaluate(self):
-        pass
+        raise NotImplementedError
 ```
 
 
