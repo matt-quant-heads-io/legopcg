@@ -137,3 +137,5 @@ animations
 .DS_Store
 animate_hpc_op.py
 test.py
+
+data/trajectories/*

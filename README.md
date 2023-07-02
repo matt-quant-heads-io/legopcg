@@ -3,8 +3,7 @@
 This project is a lego building environment for analyzing and experimenting with various generative learning algorithms.
 
 
-<img src="media/PoD_generates_vintage_car.gif" width="450"/> <img src="media/Controllable_racer.gif" width="450"/>
-
+<img src="media/pod_repair_1.gif" width="450"/>
 
 # Using legopcg
 
@@ -480,7 +479,7 @@ class CMAMAEModel(BaseModel):
         grid_archive_heatmap(self.result_archive, vmin=0, vmax=100)
 ```
 
-## Step 3: Add the model reference as a kehy-value pair to models/__init__.py
+## Step 3: Add the model reference as a key-value pair to models/__init__.py
 Add the relative import to the top of the __init__.py file to import the model identifier. Then add the key 'cmamae_model'. This will be passed as an input argument to main.py.
 ```
 import sys,os
