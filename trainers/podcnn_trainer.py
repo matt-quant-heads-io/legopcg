@@ -25,8 +25,6 @@ class PoDCNNTrainer(BaseTrainer):
             self.config
         )  # TODO: change self.config to pass in only model part of self.config
         self.dataloader = DATALOADERS_MAP[PoDCNNDataLoader.get_trainer_id()]()
-
-        print(f"self.config.train: {self.config.train}")
         self.epochs = self.config.train["epochs"]
         self.steps_per_epoch = self.config.train["steps_per_epoch"]
         self.model_save_path = self.config.model["model_save_path"]
