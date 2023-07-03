@@ -1,9 +1,5 @@
 from abc import ABC, abstractmethod
 
-from configs.config import Config
-import configs
-
-
 class BaseModel(ABC):
     """Abstract Model class that is inherited to all models"""
 

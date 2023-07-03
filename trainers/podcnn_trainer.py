@@ -13,8 +13,8 @@ from models.podcnn_model import PoDCNNModel
 from dataloaders import DATALOADERS_MAP
 from dataloaders.podcnn_dataloader import PoDCNNDataLoader
 
+# TODO: implement logging below
 # from utils.logger import get_logger
-
 # LOG = get_logger('trainer')
 
 

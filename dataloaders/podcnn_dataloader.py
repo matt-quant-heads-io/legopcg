@@ -80,11 +80,7 @@ class PoDCNNDataLoader(BaseDataLoader):
         df.drop("num_lego_pieces_signed", axis=1, inplace=True)
 
         cond_input_target = np.column_stack((num_lego_pieces_input_target,))
-        print(f"cond_input_target: {cond_input_target.shape}")
-        print(f"cond_input_target: {cond_input_target[0]}")
         signed_output = np.column_stack((num_lego_pieces_signed,))
-        print(f"signed_output: {signed_output.shape}")
-        print(f"signed_output: {signed_output[0]}")
 
         action_dim = 37
         obs_size = 6
@@ -93,7 +89,6 @@ class PoDCNNDataLoader(BaseDataLoader):
             x = df.iloc[idx, :].values.astype("int32")
             row = []
             for val in x:
-                # print(f"val: {val}")
                 oh = [0] * 37
                 oh[val] = 1
                 row.append(oh)
@@ -101,15 +96,6 @@ class PoDCNNDataLoader(BaseDataLoader):
 
         X = np.array(X)
 
-        print(f"X: {X.shape}")
-        print(f"cond_input_target: {cond_input_target.shape}")
-        print(f"y: {y.shape}")
-
-        # TODO: switch to use this (with signed inputs after confirm MLP Block is trained per signed output)
-        # return [K.constant(X), K.constant(np.array(cond_input_target))], [
-        #     np.array(signed_output),
-        #     y,
-        # ]
         return [
             K.constant(X),
             K.constant(np.array(cond_input_target)),

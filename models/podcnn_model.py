@@ -94,9 +94,6 @@ class MLPCountingBlockSigned(tf.keras.layers.Layer):
         x = tf.nn.relu(x)
         output = self.dense_1(x)
 
-        # cat_cross_entry = self.loss.update_state(inputs[2], output)
-        # self.add_loss(cat_cross_entry)
-
         return output
 
     def get_config(self):
@@ -142,19 +139,12 @@ class PoDCNNModel(BaseModel):
             [convolved_features, inputs[1], inputs[2]]
         )
 
-        # counting_head = Model(
-        #     inputs=inputs, outputs=x_lego_blocks, name="counting_head"
-        # )
-
         x = Concatenate()([convolved_features, x_lego_blocks])
         x = Dense(128)(x)
 
         output = [
             Dense(action_dim, activation="softmax")(x),
         ]
-
         conditional_cnn_model = Model(inputs, output)
-
-        # LOG.info('Model was built successfully')
 
         return conditional_cnn_model
