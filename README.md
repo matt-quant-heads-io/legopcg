@@ -105,7 +105,7 @@ class BaseModel(ABC):
 ```
 
 
-Here is an example convolutional neural network path-of-destruction model,
+Here is an example convolutional neural network Path of Destruction model,
 
 ```
 
