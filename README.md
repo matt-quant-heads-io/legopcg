@@ -162,40 +162,162 @@ class PoDCNNModel(BaseModel):
 
 
 ## Step 4: Defining a dataloader
-For non-RL settings, a dataloader should be used for loading data. For supervised learning problems, a dataloader object can also be defined to generate data.
+Per your implementation requirements, a dataloader may be required (e.g. for supervised learning problems). All datraloaders should inherit from the base class below.
+```
+class BaseDataLoader(ABC):
+    def __init__():
+        pass
 
-## Step 5: Define a Trainer
-Define a trainer that handles training the self.model member variable in the Model that you defined. Below is the example used for the PoDCNN model,
+    @abstractmethod
+    def get_trainer_id(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_data(self):
+        raise NotImplementedError
+```
+
+Below is an example dataloader that implements the abstract methods get_trainer_id and load_data, respectively.
 
 ```
-class PoDCNNTrainer:
+class PoDCNNDataLoader(BaseDataLoader):
+    def __init__(self):
+        pass
 
-    def __init__(self, model, train_data, train_targets, loss_fn, optimizer, metrics, epochs, steps_per_epoch, saved_model_path):
-        self.model = model
-        self.input = input
-        self.loss_fn = loss_fn
-        self.optimizer = optimizer
-        self.metrics = metrics
-        self.epochs = epochs
-        self.steps_per_epoch = steps_per_epoch
-        self.train_data = train_data
-        self.train_targets = train_targets
-        self.saved_model_path = saved_model_path
+    @staticmethod
+    def get_trainer_id():
+        return "podcnn_trainer"
 
-        # self.checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-        # self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, './tf_ckpts', max_to_keep=3)
+    def load_data(self, config):
+        train_data_path = config.data["train_data_path"]
+        obs_size = config.data["obs_size"]
+        use_signed_inputs = config.data["use_signed_inputs"]
 
-        # self.train_log_dir = 'logs/gradient_tape/'
-        # self.train_summary_writer = tf.summary.create_file_writer(self.train_log_dir)
+        dfs = []
+        X = []
 
-        self.model_save_path = saved_model_path
+        for file in os.listdir(train_data_path):
+            print(f"compiling df {file}")
+            if file.endswith(".ipynb_checkpoints"):
+                continue
+            df = pd.read_csv(f"{train_data_path}/{file}")
+            dfs.append(df)
+
+        df = pd.concat(dfs)
+        df = df[:300000]
+
+        df = df.sample(frac=1).reset_index(drop=True)
+        y_true = df[["target"]]
+        y = np_utils.to_categorical(y_true)
+        df.drop("target", axis=1, inplace=True)
+        y = y.astype("int32")
+        df["num_lego_pieces_input_target"] -= 1
+
+        num_lego_pieces_input_target = round(
+            df[["num_lego_pieces_input_target"]] / 27.0,
+            2,
+        )
+        df.drop("num_lego_pieces_input_target", axis=1, inplace=True)
+
+        if use_signed_inputs:
+            num_lego_pieces_signed = np_utils.to_categorical(
+                df[["num_lego_pieces_signed"]] + 1
+            )
+        else:
+            num_lego_pieces_signed = (df[["num_lego_pieces_signed"]] + 1) / 3.0
+
+        df.drop("num_lego_pieces_signed", axis=1, inplace=True)
+
+        cond_input_target = np.column_stack((num_lego_pieces_input_target,))
+        signed_output = np.column_stack((num_lego_pieces_signed,))
+
+        action_dim = 37
+        obs_size = 6
+
+        for idx in range(len(df)):
+            x = df.iloc[idx, :].values.astype("int32")
+            row = []
+            for val in x:
+                oh = [0] * 37
+                oh[val] = 1
+                row.append(oh)
+            X.append(np.array(row).reshape((obs_size, obs_size, obs_size, action_dim)))
+
+        X = np.array(X)
+
+        return [
+            K.constant(X),
+            K.constant(np.array(cond_input_target)),
+            K.constant(np.array(signed_output)),
+        ], y
+
+```
+
+Finally, to register the dataloader reference it in dataloaders/__init__.py like below.
+
+```
+from .podcnn_dataloader import PoDCNNDataLoader
+
+DATALOADERS_MAP = {
+    ...
+    PoDCNNDataLoader.get_trainer_id(): PoDCNNDataLoader
+    ...
+}
+```
+
+
+
+
+## Step 5: Define a Trainer
+Define a trainer that handles training a model via loading in data using a dataloader you define (if applicable). All Trainers inherit from the following base class.
+
+```
+class BaseTrainer(ABC):
+    """Abstract Trainer class that is inherited to all models"""
+
+    def __init__(self, config_id):
+        self.config = Config.from_json(configs.CONFIGS_MAP[config_id])
+
+    @abstractmethod
+    def get_id(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def train(self):
+        raise NotImplementedError
+```
+
+Below is an example dataloader that implements the abstract methods.
+
+```
+class PoDCNNTrainer(BaseTrainer):
+    def __init__(self, config_id):
+        super().__init__(config_id)
+        self.model = MODELS_MAP[PoDCNNModel.get_trainer_id()]().build(
+            self.config
+        )  # TODO: change self.config to pass in only model part of self.config
+        self.dataloader = DATALOADERS_MAP[PoDCNNDataLoader.get_trainer_id()]()
+
+        print(f"self.config.train: {self.config.train}")
+        self.epochs = self.config.train["epochs"]
+        self.steps_per_epoch = self.config.train["steps_per_epoch"]
+        self.model_save_path = self.config.model["model_save_path"]
+        self.model_name = self.config.model["model_name"]
+
+        self.optimizer = SGD()
+        self.loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+        self.metrics = [tf.keras.metrics.CategoricalAccuracy()]
+
+    @staticmethod
+    def get_id():
+        return "podcnn_trainer"
 
     def train(self):
         """Compiles and trains the model"""
         # LOG.info('Training started')
 
         mcp_save = ModelCheckpoint(
-            self.saved_model_path,
+            f"{self.model_save_path}/{self.model_name}",
             save_best_only=True,
             monitor="categorical_accuracy",
             mode="max",
@@ -208,9 +330,11 @@ class PoDCNNTrainer:
             metrics=[m for m in self.metrics],
         )
 
+        train_data, train_targets = self.dataloader.load_data(self.config)
+
         self.model.fit(
-            self.train_data,
-            self.train_targets,
+            train_data,
+            train_targets,
             epochs=self.epochs,
             steps_per_epoch=self.steps_per_epoch,
             verbose=2,
@@ -218,24 +342,28 @@ class PoDCNNTrainer:
         )
 ```
 
+Lastly, register the your trainer by referencing it in trainers/__init__.py.
+
+```
+from .podcnn_trainer import PoDCNNTrainer
+
+TRAINERS_MAP = {
+    PoDCNNTrainer.get_id(): PoDCNNTrainer
+}
+```
+
 ## Step 6: Run training
-Now you can train a model. navigate to the project root (in a terminal) and run main.py via the following command,
+To call a trainer's train method navigate to the project root (in a terminal) and run train.py via the following command,
 
 ```
-python main.py --mode train --config_id podcnn_config --gen_train_data
-```
-
-Note that if you don't need to generate training data you can also run like so
-
-```
-python main.py --mode train --config_id podcnn_config
+python train.py --config_id podcnn_trainer_config
 ```
 
 ## Step 7: Run inference
 That's it! Now we can run inference on your model (note that inference is defined in the evaluate method in your model). Again, navigate to the project root (in a terminal) and run main.py via the following command (replace the config below with the one your defined for your model),
 
 ```
-python main.py --mode inference --config_id podcnn_config
+python inference.py --config_id podcnn_inference_config
 ```
 
 # Example: Using CMAMAE 
