@@ -3,7 +3,7 @@
 This project is a lego building environment for analyzing and experimenting with various generative learning algorithms.
 
 
-                                               <img src="media/pod_repair_1.gif" width="450"/>
+ <img src="media/pod_repair_1.gif" width="450"/>
 
 # Using legopcg
 
