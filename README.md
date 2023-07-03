@@ -573,3 +573,16 @@ Now to run the model make cd to the project root and run the following command,
 ```
 python3 main.py --mode train --model cmamae_model --config cmamae_config
 ```
+
+This paper should be cited if legopcg-related code is used from this project in any way.
+
+```
+@misc{siper2023controllable,
+      title={Controllable Path of Destruction}, 
+      author={Matthew Siper and Sam Earle and Zehua Jiang and Ahmed Khalifa and Julian Togelius},
+      year={2023},
+      eprint={2305.18553},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI}
+}
+```
