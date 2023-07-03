@@ -24,44 +24,46 @@ conda activate legopcg
 In the **configs** directory, define a new config file. For example, create an example_config.py and paste in the following code,
 
 ```
-PODCNN_CONFIG = {
+import os
+import pathlib
+import datetime
+
+
+basepath = pathlib.Path(os.getcwd()).parents[0]
+PODCNN_TRAINER_CONFIG = {
     "data": {
-        # ... parameters related to your data go here ...
-        "path": f"{pathlib.Path(os.getcwd()).parents[0]}/legopcg/data/input/podcnn/vintage_car",
-        "image_size": 128,
-        "load_with_info": True,
-        "num_classes": 4,
-        "num_gen_episodes": 5000,
-        "output_path": f"{pathlib.Path(os.getcwd()).parents[0]}/legopcg/data/output",
-        "action_dim": 4
+        "path": f"{basepath}/legopcg/data/input/podcnn/vintage_car",
+        "goals_path": f"{basepath}/legopcg/data/goals/vintage_car_1.mpd",
+        "output_path": f"{basepath}/legopcg/data/output",
+        "action_dim": 37,
+        "train_data_path": f"{basepath}/legopcg/data/trajectories/racers",
+        "obs_size": 6,
+        "use_signed_inputs": True,
     },
     "train": {
-        # ... parameters related to your training code go here ...
         "batch_size": 64,
         "buffer_size": 1000,
         "epochs": 500,
         "steps_per_epoch": 128,
         "val_subsplits": 5,
-        "optimizer": {
-            "type": "adam"
-        },
-        "metrics": ["accuracy"]
+        "optimizer": {"type": "adam"},
+        "metrics": ["accuracy"],
     },
     "model": {
-      # ... parameters related to your model code go here ...
+        "obs_size": 6,
+        "action_dim": 37,
         "input": [128, 128, 3],
         "up_stack": {
             "layer_1": 512,
             "layer_2": 256,
             "layer_3": 128,
             "layer_4": 64,
-            "kernels": 3
+            "kernels": 3,
         },
         "output": 3,
-        "saved_model_path": f"{pathlib.Path(os.getcwd()).parents[0]}/legopcg/saved_models",
-        "saved_model_name": f"pod_cnn_{datetime.datetime.now()}.h5"
-
-    }
+        "model_save_path": f"{basepath}/legopcg/saved_models",
+        "model_name": f"pod_cnn_{datetime.datetime.now()}.h5",
+    },
 }
 ```
 
@@ -73,186 +75,249 @@ import sys,os
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
 # add your config import here after the other config imports
-from .example_config import EXAMPLE_CONFIG
+from .podcnn_trainer_config import PODCNN_TRAINER_CONFIG
 
 CONFIGS_MAP = {
-    
-    # add your key, value pair at the end of the map
-    "example_config": EXAMPLE_CONFIG
+    ...
+    "podcnn_trainer_example": PODCNN_TRAINER_CONFIG,
+    ...
 }
 ```
 
 
 ## Step 3: Defining a model
-All models inherit from the BaseModel class in model/base_model.py. Therefore, your model must implement the methods
+All models inherit from the BaseModel class in model/base_model.py. Therefore, your model must implement the following methods
 
 ```
 class BaseModel(ABC):
     """Abstract Model class that is inherited to all models"""
-    def __init__(self, cfg):
-        self.config = Config.from_json(cfg)
+
+    def __init__(self):
+        pass
 
     @abstractmethod
-    def load_data(self):
-        pass
+    def get_trainer_id(self):
+        raise NotImplementedError
 
     @abstractmethod
     def build(self):
-        pass
-
-    @abstractmethod
-    def train(self):
-        pass
-
-    @abstractmethod
-    def evaluate(self):
-        pass
+        raise NotImplementedError
 ```
 
 
 Here is an example convolutional neural network path-of-destruction model,
 
 ```
-class PoDCNN(BaseModel):
-    """PoDCNN Model Class"""
 
-    def __init__(self, config):
-        super().__init__(config)
-        self.output_channels = self.config['model']['output']
-
-        self.dataset = None
-        self.info = None
-        self.train_config = self.config['train']
-        self.data_config = self.config['data']
-        self.model_config = self.config['model']
-        self.batch_size = self.train_config['batch_size']
-        self.buffer_size = self.train_config['buffer_size']
-        self.epochs = self.train_config['epochs']
+from .base_model import BaseModel
 
 
-        self.num_classes = self.data_config['num_classes']
-        self.val_subsplits = self.train_config['val_subsplits']
-        self.validation_steps = 0
-        self.train_length = 0
-        self.steps_per_epoch = self.train_config['steps_per_epoch']
-        self.saved_model_path = f"{self.model_config['saved_model_path']}/{self.model_config['saved_model_name']}"
+class PoDCNNModel(BaseModel):
+    def __init__(
+        self,
+    ):
+        super().__init__()
 
-        self.dims = self.data_config['dims']
-        self.obs_size = self.data_config['obs_size']
-        self.action_dim = self.data_config['action_dim']
+    @staticmethod
+    def get_trainer_id():
+        return "podcnn_trainer"
 
-        self.train_dataset = []
-        self.target_dataset = []
-        self.test_dataset = []
-
-        self.model = self.build()
-
-    def generate_data(self):
-        """Generates and persists data and Preprocess data """
-        # LOG.info(f'Generating data for PoDCNN model...')
-
-        DataLoader().generate_data(self.data_config)
-
-
-    def load_data(self):
-        """Loads and Preprocess data """
-        # LOG.info(f'Loading {self.config.data.path} dataset...')
-        self.train_dataset, self.target_dataset = DataLoader().load_data(self.data_config)
-        # self.train_dataset, self.test_dataset = DataLoader.preprocess_data(self.dataset, self.batch_size,
-        #                                                                    self.buffer_size, self.image_size)
-        self._set_training_parameters()
-
-    def _set_training_parameters(self):
-        """Sets training parameters"""
-        # self.train_length = self.info.splits['train'].num_examples
-        # self.steps_per_epoch = self.train_length // self.batch_size
-        # self.validation_steps = self.info.splits['test'].num_examples // self.batch_size // self.val_subsplits
-        pass
-
-    def build(self):
-        """ Builds the Keras model based """
+    def build(self, config):
+        """Builds the Keras model based"""
+        obs_size = config.model["obs_size"]
+        action_dim = config.model["action_dim"]
         inputs = [
-            Input(shape=(self.obs_size, self.obs_size, self.action_dim))
+            Input(shape=(obs_size, obs_size, obs_size, action_dim)),
+            Input(shape=(1,)),
+            Input(shape=(3,)),
         ]
 
-        x = Conv2D(
+        x = Conv3D(
             128,
-            (3, 3),
+            (3, 3, 3),
             activation="relu",
-            input_shape=(self.obs_size, self.obs_size, self.action_dim),
+            input_shape=(obs_size, obs_size, obs_size, action_dim),
             padding="SAME",
         )(inputs[0])
 
-        x = MaxPooling2D(2, 2)(x)
-        x = Conv2D(128, (3, 3), activation="relu", padding="SAME")(x)
-        x = Conv2D(256, (3, 3), activation="relu", padding="SAME")(x)
-        x = Flatten()(x)
+        x = MaxPooling3D(pool_size=(2, 2, 2))(x)
+        x = Conv3D(128, (3, 3, 3), activation="relu", padding="SAME")(x)
+        x = Conv3D(256, (3, 3, 3), activation="relu", padding="SAME")(x)
+        convolved_features = Flatten()(x)
+
+        x_lego_blocks = MLPCountingBlockSigned(name="lego_pieces_counting_block")(
+            [convolved_features, inputs[1], inputs[2]]
+        )
+
+        x = Concatenate()([convolved_features, x_lego_blocks])
+        x = Dense(128)(x)
 
         output = [
-            Dense(self.action_dim, activation="softmax")(x),    
+            Dense(action_dim, activation="softmax")(x),
         ]
-
         conditional_cnn_model = Model(inputs, output)
 
-        # LOG.info('Model was built successfully')
-
-        return conditional_cnn_model 
-
-    def train(self):
-        """Compiles and trains the model"""
-        # LOG.info('Training started')
-
-        optimizer = SGD()
-        loss = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-        metrics = [tf.keras.metrics.CategoricalAccuracy()]
-
-        trainer = PoDCNNTrainer(self.model, self.train_dataset, self.target_dataset, loss, optimizer, metrics, self.epochs, self.steps_per_epoch, self.saved_model_path)
-        trainer.train()
-
-    def _run_inference(self):
-        pass
-
-    def evaluate(self):
-        """Predicts resuts for the test dataset"""
-        self._run_inference()
+        return conditional_cnn_model
 ```
 
 
 ## Step 4: Defining a dataloader
-For non-RL settings, a dataloader should be used for loading data. For supervised learning problems, a dataloader object can also be defined to generate data.
+Per your implementation requirements, a dataloader may be required (e.g. for supervised learning problems). All datraloaders should inherit from the base class below.
+```
+class BaseDataLoader(ABC):
+    def __init__():
+        pass
 
-## Step 5: Define a Trainer
-Define a trainer that handles training the self.model member variable in the Model that you defined. Below is the example used for the PoDCNN model,
+    @abstractmethod
+    def get_trainer_id(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_data(self):
+        raise NotImplementedError
+```
+
+Below is an example dataloader that implements the abstract methods get_trainer_id and load_data, respectively.
 
 ```
-class PoDCNNTrainer:
+class PoDCNNDataLoader(BaseDataLoader):
+    def __init__(self):
+        pass
 
-    def __init__(self, model, train_data, train_targets, loss_fn, optimizer, metrics, epochs, steps_per_epoch, saved_model_path):
-        self.model = model
-        self.input = input
-        self.loss_fn = loss_fn
-        self.optimizer = optimizer
-        self.metrics = metrics
-        self.epochs = epochs
-        self.steps_per_epoch = steps_per_epoch
-        self.train_data = train_data
-        self.train_targets = train_targets
-        self.saved_model_path = saved_model_path
+    @staticmethod
+    def get_trainer_id():
+        return "podcnn_trainer"
 
-        # self.checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-        # self.checkpoint_manager = tf.train.CheckpointManager(self.checkpoint, './tf_ckpts', max_to_keep=3)
+    def load_data(self, config):
+        train_data_path = config.data["train_data_path"]
+        obs_size = config.data["obs_size"]
+        use_signed_inputs = config.data["use_signed_inputs"]
 
-        # self.train_log_dir = 'logs/gradient_tape/'
-        # self.train_summary_writer = tf.summary.create_file_writer(self.train_log_dir)
+        dfs = []
+        X = []
 
-        self.model_save_path = saved_model_path
+        for file in os.listdir(train_data_path):
+            print(f"compiling df {file}")
+            if file.endswith(".ipynb_checkpoints"):
+                continue
+            df = pd.read_csv(f"{train_data_path}/{file}")
+            dfs.append(df)
+
+        df = pd.concat(dfs)
+        df = df[:300000]
+
+        df = df.sample(frac=1).reset_index(drop=True)
+        y_true = df[["target"]]
+        y = np_utils.to_categorical(y_true)
+        df.drop("target", axis=1, inplace=True)
+        y = y.astype("int32")
+        df["num_lego_pieces_input_target"] -= 1
+
+        num_lego_pieces_input_target = round(
+            df[["num_lego_pieces_input_target"]] / 27.0,
+            2,
+        )
+        df.drop("num_lego_pieces_input_target", axis=1, inplace=True)
+
+        if use_signed_inputs:
+            num_lego_pieces_signed = np_utils.to_categorical(
+                df[["num_lego_pieces_signed"]] + 1
+            )
+        else:
+            num_lego_pieces_signed = (df[["num_lego_pieces_signed"]] + 1) / 3.0
+
+        df.drop("num_lego_pieces_signed", axis=1, inplace=True)
+
+        cond_input_target = np.column_stack((num_lego_pieces_input_target,))
+        signed_output = np.column_stack((num_lego_pieces_signed,))
+
+        action_dim = 37
+        obs_size = 6
+
+        for idx in range(len(df)):
+            x = df.iloc[idx, :].values.astype("int32")
+            row = []
+            for val in x:
+                oh = [0] * 37
+                oh[val] = 1
+                row.append(oh)
+            X.append(np.array(row).reshape((obs_size, obs_size, obs_size, action_dim)))
+
+        X = np.array(X)
+
+        return [
+            K.constant(X),
+            K.constant(np.array(cond_input_target)),
+            K.constant(np.array(signed_output)),
+        ], y
+
+```
+
+Finally, to register the dataloader reference it in dataloaders/__init__.py like below.
+
+```
+from .podcnn_dataloader import PoDCNNDataLoader
+
+DATALOADERS_MAP = {
+    ...
+    PoDCNNDataLoader.get_trainer_id(): PoDCNNDataLoader
+    ...
+}
+```
+
+
+
+
+## Step 5: Define a Trainer
+Define a trainer that handles training a model via loading in data using a dataloader you define (if applicable). All Trainers inherit from the following base class.
+
+```
+class BaseTrainer(ABC):
+    """Abstract Trainer class that is inherited to all models"""
+
+    def __init__(self, config_id):
+        self.config = Config.from_json(configs.CONFIGS_MAP[config_id])
+
+    @abstractmethod
+    def get_id(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def train(self):
+        raise NotImplementedError
+```
+
+Below is an example dataloader that implements the abstract methods.
+
+```
+class PoDCNNTrainer(BaseTrainer):
+    def __init__(self, config_id):
+        super().__init__(config_id)
+        self.model = MODELS_MAP[PoDCNNModel.get_trainer_id()]().build(
+            self.config
+        )  # TODO: change self.config to pass in only model part of self.config
+        self.dataloader = DATALOADERS_MAP[PoDCNNDataLoader.get_trainer_id()]()
+
+        print(f"self.config.train: {self.config.train}")
+        self.epochs = self.config.train["epochs"]
+        self.steps_per_epoch = self.config.train["steps_per_epoch"]
+        self.model_save_path = self.config.model["model_save_path"]
+        self.model_name = self.config.model["model_name"]
+
+        self.optimizer = SGD()
+        self.loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+        self.metrics = [tf.keras.metrics.CategoricalAccuracy()]
+
+    @staticmethod
+    def get_id():
+        return "podcnn_trainer"
 
     def train(self):
         """Compiles and trains the model"""
         # LOG.info('Training started')
 
         mcp_save = ModelCheckpoint(
-            self.saved_model_path,
+            f"{self.model_save_path}/{self.model_name}",
             save_best_only=True,
             monitor="categorical_accuracy",
             mode="max",
@@ -265,9 +330,11 @@ class PoDCNNTrainer:
             metrics=[m for m in self.metrics],
         )
 
+        train_data, train_targets = self.dataloader.load_data(self.config)
+
         self.model.fit(
-            self.train_data,
-            self.train_targets,
+            train_data,
+            train_targets,
             epochs=self.epochs,
             steps_per_epoch=self.steps_per_epoch,
             verbose=2,
@@ -275,24 +342,28 @@ class PoDCNNTrainer:
         )
 ```
 
+Lastly, register the your trainer by referencing it in trainers/__init__.py.
+
+```
+from .podcnn_trainer import PoDCNNTrainer
+
+TRAINERS_MAP = {
+    PoDCNNTrainer.get_id(): PoDCNNTrainer
+}
+```
+
 ## Step 6: Run training
-Now you can train a model. navigate to the project root (in a terminal) and run main.py via the following command,
+To call a trainer's train method navigate to the project root (in a terminal) and run train.py via the following command,
 
 ```
-python main.py --mode train --config_id podcnn_config --gen_train_data
-```
-
-Note that if you don't need to generate training data you can also run like so
-
-```
-python main.py --mode train --config_id podcnn_config
+python train.py --config_id podcnn_trainer_config
 ```
 
 ## Step 7: Run inference
 That's it! Now we can run inference on your model (note that inference is defined in the evaluate method in your model). Again, navigate to the project root (in a terminal) and run main.py via the following command (replace the config below with the one your defined for your model),
 
 ```
-python main.py --mode inference --config_id podcnn_config
+python inference.py --config_id podcnn_inference_config
 ```
 
 # Example: Using CMAMAE 
