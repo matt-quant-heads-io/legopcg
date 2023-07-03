@@ -295,7 +295,7 @@ class PoDCNNTrainer(BaseTrainer):
         super().__init__(config_id)
         self.model = MODELS_MAP[PoDCNNModel.get_trainer_id()]().build(
             self.config
-        )  # TODO: change self.config to pass in only model part of self.config
+        )
         self.dataloader = DATALOADERS_MAP[PoDCNNDataLoader.get_trainer_id()]()
 
         print(f"self.config.train: {self.config.train}")
