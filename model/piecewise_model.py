@@ -145,6 +145,34 @@ class LegoModelPiecewise(BaseModel):
 
         self.model = PPO.load(self.saved_model_path)
 
+    def run_inference(self):
+        #set the save directory
+        episodes = 10
+        with torch.no_grad():
+            for ep in range(episodes):
+                save_path = self.saved_model_path + "inference/"+str(ep)
+                os.makedirs(save_path)
+                curr_obs = self.env.reset()
+                curr_step_num = 0 
+
+                done = False
+                while not done:
+                    action, _ = self.model.predict(curr_obs)
+                    curr_obs, _, is_finished, info = self.env.step(action) 
+
+                    curr_step_num += 1
+
+                    ut.save_arrangement(
+                        self.env.envs[0].rep.blocks, 
+                        save_path, 
+                        curr_step_num, 
+                        None, 
+                        self.env.envs[0].reward_history,
+                        render = True)
+                    
+                ut.animate(save_path)
+                print(self.env.envs[0].reward_history)
+
     def train(self):
         # will be moved to executor once callbacks are in place 
         custom_callback = TensorboardCallback()
