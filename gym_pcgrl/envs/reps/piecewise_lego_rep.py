@@ -11,6 +11,7 @@ import pdb
 from gym_pcgrl.envs.reps.representation_3d import Representation3D 
 
 
+
 class LegoBlock():
     def __init__(self, dimsNum, rep, block_idx):
         super().__init__()
@@ -36,6 +37,7 @@ class LegoBlock():
         self.last_x = self.x
         self.last_y = self.y
         self.last_z = self.z
+        
 
     def place(self):
         self.rep.curr_block = self.idx
@@ -90,10 +92,22 @@ class PiecewiseRepresentation(Representation3D):
         self.reward_param = train_cfg["reward_param"]
         self.last_reward = 0
         self.curr_reward = 0
+        self.action_space = train_cfg["action_space"]
+        self.policy = train_cfg["policy"]
 
         self.max_x= train_cfg["GridDimensions"][0]# max y starting from 0
         self.max_y = train_cfg["GridDimensions"][1]  # max x starting from 0
         self.max_z = train_cfg["GridDimensions"][2]  # max z starting from 0
+
+
+        self.controllable = train_cfg["controllable"]
+
+        if self.controllable:
+            self.goal = [random.randrange(self.max_x), random.randrange(self.max_z)]
+            self.last_goal = [x for x in self.goal]
+
+        else:
+            self.last_goal = None
         
         self.curr_block = 0
         self.num_of_blocks = train_cfg["num_of_blocks"]
@@ -110,14 +124,6 @@ class PiecewiseRepresentation(Representation3D):
         for i in range(2,self.num_of_blocks):
 
             blockname = ut.onehot_index_to_str_map[random.randint(1, 3)]
-            """
-            if i < self.num_of_blocks//4:
-                blockname = "3003"
-            elif i < 2*self.num_of_blocks//4:
-                blockname = "3004"
-            else: 
-                blockname = "3005"
-            """
             block = LegoBlock(blockname, self, i)
             self.blocks.append(block)
             block.place()
@@ -141,11 +147,14 @@ class PiecewiseRepresentation(Representation3D):
         
     def reset(self):
         # Reset all internal data structures being used
+
+
         self.final_map = np.copy(self._map)
         #super().reset(height, width, depth)
-        self.last_reward = self.curr_reward
-        self.curr_reward = self.get_reward()
 
+        if self.controllable and self.episode%10 == 0:
+            self.last_goal = [x for x in self.goal]
+            self.goal = [random.randrange(self.max_x), random.randrange(self.max_z)]
         self.full_map= self.get_full_map()
 
         self.blocks = []
@@ -180,6 +189,8 @@ class PiecewiseRepresentation(Representation3D):
         self.step = 0
         self.step_count = 0
         self.episode += 1
+        if self.controllable:
+            self.goal = (random.randrange(self.max_x), random.randrange(self.max_z))
 
         
         
@@ -192,8 +203,15 @@ class PiecewiseRepresentation(Representation3D):
             to do: rotate clockwise, rotate counterclockwise
         """
         #return spaces.MultiDiscrete(nvec=[2*(self.max_x-1), 2*(self.max_y-1), 2*(self.max_z-1)])
-        #return spaces.MultiDiscrete(nvec=[2*(self.max_x-1), 2*(self.max_y-1)])
-        return spaces.Discrete(5)
+        if self.action_space == "relative_position":
+            return spaces.MultiDiscrete(nvec=[3, 3])#spaces.MultiDiscrete(nvec=[2*(self.max_x)-1, 2*(self.max_z)-1])
+        
+        elif self.action_space == "one_step":
+            return spaces.Discrete(5)
+        elif self.action_space == "fixed_position":
+            return spaces.MultiDiscrete(nvec=[self.max_x, self.max_z])
+        else:
+            print("Invalid Action Space!")
 
     def get_observation_space(self):
         """
@@ -201,24 +219,51 @@ class PiecewiseRepresentation(Representation3D):
         """
 
         #map_obs = spaces.Box(low = -2, high = 5, shape = (self.observation_size, self.observation_size, self.observation_size, 8), dtype = np.uint8)
+        if self.action_space == "relative_position" or self.action_space == "one_step":
+            map_obs = spaces.Box(low = 0, high = 1, shape = (2+len(ut.onehot_index_to_str_map), self.observation_size, self.observation_size*3-2, self.observation_size), dtype = np.uint8)
+        elif self.action_space == "fixed_position":
+            map_obs = spaces.Box(low = 0, high = 1, shape = (2+len(ut.onehot_index_to_str_map), self.max_x, self.max_y, self.max_z), dtype = np.uint8)
 
-        map_obs = spaces.Box(low = 0, high = 1, shape = (2+len(ut.onehot_index_to_str_map), self.observation_size, self.observation_size*3-2, self.observation_size), dtype = np.uint8)
         self_obs = spaces.Box(low = 0, high = 1, shape = (1,3), dtype = np.uint8)
-        return spaces.Dict(
-            {
-                "block_dims": self_obs,
-                "map": map_obs,
-            }
-        )
+
+        goal_obs = spaces.Box(low=0, high = max(self.max_x, self.max_z), shape=(1,2), dtype=np.uint8)
+        
+
+        if self.controllable:
+            return spaces.Dict(
+                {
+                    "goal": goal_obs,
+                    "block_dims": self_obs,
+                    "map": map_obs,
+                }
+            )
+        else:
+            return spaces.Dict(
+                {
+                    "block_dims": self_obs,
+                    "map": map_obs,
+                }
+            )
     
 
     def get_observation(self):
         
         if self._last_map is None:
             self._last_map = self.get_map()
-        
-        return {
+
+        if self.controllable:
+            return {
+                "goal": self.goal,
                 "map":self._last_map,
+                #"position: ?"
+                "block_dims":self.blocks[self.curr_block].dims
+
+            }
+
+        else:
+            return {
+                "map":self._last_map,
+                #"position: ?"
                 "block_dims":self.blocks[self.curr_block].dims
 
             }
@@ -244,7 +289,7 @@ class PiecewiseRepresentation(Representation3D):
 
         return map
     
-    def get_map(self):
+    def get_relative_map(self):
 
         #for all of the i s immediately above/below, behind/in front, left/right of the current block, check if there is a block there and mark it.
 
@@ -262,7 +307,7 @@ class PiecewiseRepresentation(Representation3D):
         
         obs_offset = self.observation_size//2
         curr_block = self.blocks[self.curr_block]
-        #obs[curr_block.x, curr_block.y, curr_block.z] = 5
+        #obs[curr_block.x, curr_block.yf, curr_block.z] = 5
         x_start = curr_block.x - obs_offset
         x_end = curr_block.x + obs_offset
         y_start = curr_block.y - obs_offset*3
@@ -321,6 +366,33 @@ class PiecewiseRepresentation(Representation3D):
         final_obs =  np.transpose(onehot_obs, (3,0,1,2))#.astype(np.float32)
         return(final_obs)
             
+    def get_fixed_map(self):
+
+        #for all of the i s immediately above/below, behind/in front, left/right of the current block, check if there is a block there and mark it.
+
+        #assert (self.observation_size <= self.max_x) and (self.observation_size <= self.max_y) and (self.observation_size <= self.max_z)
+
+        obs = self.get_full_map()
+
+        curr_block = self.blocks[self.curr_block]
+
+        for i in range(curr_block.dims[0]):
+                for j in range(curr_block.dims[1]):
+                    for k in range(curr_block.dims[2]):
+                        obs[curr_block.x + i, curr_block.y + j, curr_block.z + k] = -2
+        
+        
+        obs = obs +2
+        onehot_obs = np.eye(len(ut.onehot_index_to_str_map)+2)[obs.astype(int)]#np.zeros((obs.shape[0], obs.shape[1], obs.shape[2], len()), type = float)
+        
+        final_obs =  np.transpose(onehot_obs, (3,0,1,2))#.astype(np.float32)
+        return(final_obs)
+    
+    def get_map(self):
+        if self.action_space == "fixed_position":
+            return self.get_fixed_map()
+        else:
+            return self.get_relative_map()
     
     def _end_update(self):
             #self.punish = True
@@ -334,7 +406,6 @@ class PiecewiseRepresentation(Representation3D):
             self._last_map = np.copy(self._map)
             self._map = self.get_map()
             self.full_map = self.get_full_map()
-            #print("ending update ", self.step)
 
             return
     
@@ -463,7 +534,11 @@ class PiecewiseRepresentation(Representation3D):
 
     def get_reward(self):
         if self.reward_param == "avg_height":
-            reward = self.get_height()
+            
+            if self.controllable:
+                reward=self.height_at_goal()
+            else:
+                reward = self.get_height()
         elif self.reward_param == "avg_height_squared":
             reward = sum([block.y*block.y for block in self.blocks])/len(self.blocks)
         elif self.reward_param == "platform":
@@ -487,25 +562,53 @@ class PiecewiseRepresentation(Representation3D):
             Check whether grid has enough space to accommodate 
             the predicted block or not.
         """
-        # none = 0, left = 1 , right= 2, forward = 3, backward = 4
-        #TO DO : do we punish if it's off the grid
-
+        
         curr_block = self.blocks[self.curr_block]
-        if action == 0:
-            pass
-        elif action == 1:
-            curr_block.next_z = curr_block.z - 1#max(curr_block.z - 1, 0)
-        elif action == 2:
-            curr_block.next_z = curr_block.z + 1#min(curr_block.z + 1, self.max_z-curr_block.dims[2])
-        elif action == 3:
-            curr_block.next_x = curr_block.x - 1#max(curr_block.x - 1, 0)
-        elif action == 4:
-            curr_block.next_x = curr_block.x + 1#min(curr_block.x + 1, self.max_x-curr_block.dims[0])
+        
+        if self.action_space == "one_step":
+            #none = 0, left = 1 , right= 2, forward = 3, backward = 4
+            if action == 0:
+                pass
+            elif action == 1:
+                curr_block.next_z = curr_block.z - 1#max(curr_block.z - 1, 0)
+            elif action == 2:
+                curr_block.next_z = curr_block.z + 1#min(curr_block.z + 1, self.max_z-curr_block.dims[2])
+            elif action == 3:
+                curr_block.next_x = curr_block.x - 1#max(curr_block.x - 1, 0)
+            elif action == 4:
+                curr_block.next_x = curr_block.x + 1#min(curr_block.x + 1, self.max_x-curr_block.dims[0])
+            else:
+                print("Invalid Action!!")
+
+            curr_block.next_y = self.max_y-curr_block.dims[1]
+
+
+        elif self.action_space == "relative_position":
+            move_x = action[0] - 1
+            next_x = curr_block.x + move_x
+            move_z = action[1] - 1
+            next_z = curr_block.z + move_z
+
+            curr_block.next_x = next_x#max(min(self.max_x-1, next_x), 0)
+            curr_block.next_z = next_z#max(min(self.max_z-1, next_z), 0)
+            curr_block.next_y = self.max_y-curr_block.dims[1]
+
+            #print(curr_block.next_x, curr_block.next_z)
+        
+        elif self.action_space == "fixed_position":
+
+            
+            curr_block.next_x = action[0]#max(min(self.max_x-1, next_x), 0)
+            curr_block.next_z = action[1]#max(min(self.max_z-1, next_z), 0)
+            curr_block.next_y = self.max_y-curr_block.dims[1]
+
+            #print(curr_block.next_x, curr_block.next_z)
         else:
-            print("Invalid Action!!")
+            print("Invalid Action Space!")
+        """
+        # 
 
-        curr_block.next_y = self.max_y-1
-
+        """
         while not self._will_be_connected(self.curr_block):
             curr_block.next_y-=1
 
@@ -556,6 +659,19 @@ class PiecewiseRepresentation(Representation3D):
         
     def get_height(self):
         return sum([self.blocks[i].y for i in range(self.num_of_blocks)])/self.num_of_blocks
+    
+    def height_at_goal(self):
+        goal_x, goal_z = self.goal
+
+        map = self.get_full_map()
+        
+        for y in range(self.max_z-1, -1, -1):
+            if map[goal_x, y, goal_z] != 0:
+                return y
+        return 0
+
+
+
 
     # def get_state_number(self):
 

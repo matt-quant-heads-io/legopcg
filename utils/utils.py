@@ -11,6 +11,10 @@ import imageio
 
 
 
+from scipy.interpolate import make_interp_spline
+
+
+
 LegoDimsDict = {
     "empty" : [0,0,0],
     "3005" : [1,3,1], # x,y,z dims
@@ -82,7 +86,7 @@ def renderpng(mpdfile, imgname):
     '''
     os.system(leocad_command)
 
-def save_arrangement(blocks, dir_path, curr_step_num, curr_reward, rewards = None, render = False, episode = None):
+def save_arrangement(blocks, dir_path, curr_step_num, curr_reward, rewards = None, render = False, episode = None, goal = None):
 
     if not os.path.exists(dir_path + "mpds"):
             os.makedirs(dir_path + "mpds")
@@ -95,15 +99,19 @@ def save_arrangement(blocks, dir_path, curr_step_num, curr_reward, rewards = Non
 
     if rewards:
         x = range(len(rewards))
-        plt.title("avg_height")
+        plt.title("reward")
         plt.plot(x, rewards)
         plt.savefig(dir_path + "/rewards.png")
+        
 
+        
     filename = f"{curr_step_num:05}"#str(curr_step_num) 
     if episode != None:
         filename = f"{episode:04}_" + filename
     if curr_reward != None:
         filename += "_"+ str(curr_reward) 
+    if goal != None:
+        filename += "_x" + str(goal[0])+"z"+str(goal[1])
     f = open(savedir + filename +'.mpd', "a")
     f.write("0\n")
     f.write("0 Name: New Model.ldr\n")

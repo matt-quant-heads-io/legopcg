@@ -9,7 +9,7 @@ import gc
 
 class LegoPCGEnv3DPiecewise(gym.Env):
     
-    def __init__(self, configs, savedir, problem="legopiecewise", representation="piecewise"):
+    def __init__(self, configs, savedir, problem="legopiecewise", representation="piecewise", model = None):
 
         super().__init__()
     
@@ -35,6 +35,7 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         self.reward_history = [0]
         self.current_blocks = []
         self.last_blocks = []
+        self.model=model
 
     """
     def seed(self, seed=None):
@@ -49,11 +50,14 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         self.reward_history.append(self.rep.get_reward())
     
         if self._episode % 250 == 0 or self.reward_history[-1] >= max(self.reward_history[:-1]) and self._episode > 20 and self.reward_history[-1] > 0:
-            ut.save_arrangement(self.rep.blocks, self.savedir + "training_imgs" + "/", self._episode, self.reward_history[-1], rewards = self.reward_history, render = True)   
+            ut.save_arrangement(self.rep.blocks, self.savedir + "training_imgs" + "/", self._episode, self.reward_history[-1], rewards = self.reward_history, render = True, goal = self.rep.last_goal)   
             for i, blocks in enumerate(self.current_blocks):
-                ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode) +"/", i, curr_reward = None, render = True)
+                ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode) +"/", i, curr_reward = None, render = True, goal = self.rep.last_goal)
                 if i == len(self.current_blocks)-1:
-                    ut.animate(self.savedir + "training_imgs/", self._episode)   
+                    ut.animate(self.savedir + "training_imgs/", self._episode)
+
+            if self.model != None and self.reward_history[-1] >= max(self.reward_history[:-1]):
+                self.model.model.save(self.model.saved_model_path + str(self._episode))
         
 
         """
@@ -90,6 +94,7 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         obs = self.rep.get_observation()
 
         return obs
+    
     def step(self, action):
         #ut.save_arrangement(self.rep.blocks, self.savedir + str(self._episode) + "/", self._step, self.reward_history[-1], render = True)
 
@@ -116,7 +121,12 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         #old_stats['old_location'] = self.rep.old_location
         reward = self.prob.get_reward(new_stats, old_stats, self.reward_param)
         
+
+        #reward = max(reward, 0)
+
         done = self.prob.get_episode_over(new_stats, self._episode, self.num_of_blocks, self.steps_per_episode)
+
+        
 
         info = {}
         info['solved'] = done

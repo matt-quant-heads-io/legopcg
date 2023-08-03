@@ -4,6 +4,8 @@ import configs
 import model as models
 
 
+
+
 def get_args():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument('--mode', choices=['inference', 'train'], required=True)
@@ -15,11 +17,12 @@ def get_args():
     argument_parser.add_argument('--observation_size', type = int, required=False)
     argument_parser.add_argument('--punish', type = float, required = False)
     argument_parser.add_argument('--reward_param', type = str, required = False)
+    argument_parser.add_argument('--controllable', required = False, action='store_true')
 
     return argument_parser.parse_args()
 
 
-def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_ep = None, observation_size = None, punish = None, reward_param = None):
+def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_ep = None, observation_size = None, punish = None, reward_param = None, controllable=False):
     config = configs.CONFIGS_MAP[config_id]
 
     if num_blocks != None:
@@ -32,7 +35,8 @@ def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_e
         config['train']['punish'] = punish
     if reward_param != None:
         config['train']['reward_param'] = reward_param
-
+    if controllable:
+        config['train']['controllable'] = True
 
     model = models.MODELS_MAP[model_id](config)
     if mode == 'train':
@@ -55,5 +59,6 @@ if __name__ == "__main__":
         args.reps_per_ep,
         args.observation_size,
         args.punish,
-        args.reward_param
+        args.reward_param,
+        args.controllable
     )
