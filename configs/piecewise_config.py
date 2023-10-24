@@ -15,7 +15,7 @@ PIECEWISE_CONFIG = {
         "cnn_output_channels": 48,
     },
     "train" : {
-        "num_episodes" : 10000,#10000, #current option just changed from -1 to 0 min reward
+        "num_episodes" : 10,#100000, #current option just changed from -1 to 0 min reward
         "policy" : "MultiInputPolicy",#""CnnPolicy",MlpPolicy", #
         "GridDimensions" : [15,3*15,15],
         "LegoBlockIDs" : ["empty", "3005", "3004", "3622"],

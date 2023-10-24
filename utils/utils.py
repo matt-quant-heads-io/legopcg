@@ -71,7 +71,7 @@ def get_device() -> str:
 
 
 def renderpng(mpdfile, imgname):
-    ##angle was 30
+    ##angle was 30 30
     leocad_command = f'''
 	    leocad	\
 		--height "2046"	\
@@ -106,6 +106,8 @@ def save_arrangement(blocks, dir_path, curr_step_num, curr_reward, rewards = Non
 
         
     filename = f"{curr_step_num:05}"#str(curr_step_num) 
+
+
     if episode != None:
         filename = f"{episode:04}_" + filename
     if curr_reward != None:
@@ -117,6 +119,26 @@ def save_arrangement(blocks, dir_path, curr_step_num, curr_reward, rewards = Non
     f.write("0 Name: New Model.ldr\n")
     f.write("0 Author:\n")
     f.write("\n")
+    for x in range(15):
+        for z in range(15):
+            lego_block_name = "3005"
+            current_xyz_dims = [1,3,1]
+            block_color = "2 "
+            
+            y_offset = -3#-24
+
+            x_lego = x * 20  + 10*(LegoDimsDict[lego_block_name][0]-1) #- 5*10
+            y_lego =  0#(1)*(LegoDimsDict[lego_block_name][1])
+            z_lego = z * 20 + 10*(LegoDimsDict[lego_block_name][2]-1) #- 5*10
+
+            #print(block.x, block.y, block.z)
+            
+            f.write("1 ")
+            f.write(block_color)
+            f.write(str(x_lego) + ' ' + str(y_lego) + ' ' + str(z_lego) + ' ')
+            f.write("1 0 0 0 1 0 0 0 1 ")
+            f.write(lego_block_name + ".dat")
+            f.write("\n")
 
 
     for block in blocks:
@@ -151,6 +173,7 @@ def save_arrangement(blocks, dir_path, curr_step_num, curr_reward, rewards = Non
         f.write("\n")
 
     f.close() 
+
     if render: 
         renderpng(savedir + filename + ".mpd", imgdir + filename + ".png")
 

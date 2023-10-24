@@ -8,11 +8,12 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.utils import safe_mean
 import numpy as np
-
+import csv
 
 import gym
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
 
 # local imports
 from .base_model import BaseModel
@@ -29,11 +30,13 @@ class TensorboardCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         
-        self.logger.record("train/reward_episode_end", self.model.env.envs[0].reward_history[-1])
+        self.logger.record("env/reward_episode_end", self.model.env.envs[0].reward_history[-1])
+        self.logger.record("env/last_episode_action_count", self.model.env.envs[0].action_count)
         if len(self.model.env.envs[0].reward_history) > 2:
-            self.logger.record("train/reward_step", (self.model.env.envs[0].reward_history[-1]-self.model.env.envs[0].reward_history[-2]))
+            self.logger.record("env/reward_step", (self.model.env.envs[0].reward_history[-1]-self.model.env.envs[0].reward_history[-2]))
 
-
+            self.logger.record("env/last_episode_length", len(self.model.env.envs[0].last_blocks))
+        
         
             #self.logger.record("rollout/ep_len_mean", safe_mean([ep_info["l"] for ep_info in self.ep_info_buffer]))
         #self.logger.record("reward", self.model.ep_info_buffer[-1], exclude=("stdout", "log", "json", "csv"))
@@ -70,10 +73,13 @@ class LegoModelPiecewise(BaseModel):
         else:
             savedir += "_" + str(self.train_config["reps_per_episode"]) + "_passes_"
 
-        savedir +=  str(self.num_timesteps) + "_ts_" + str(self.train_config["num_of_blocks"]) + "_blocks_"  + str(self.train_config["observation_size"]) + "_obs_" + str(self.cnn_output_channels) + "_chans"
+        savedir +=  str(self.num_timesteps) + "_ts_" + str(self.train_config["num_of_blocks"]) + "_blocks_"  + str(self.train_config["observation_size"]) + "_obs_"
+        
+        if self.model_config["features_extractor"] == "cnn":
+         savedir += str(self.cnn_output_channels) + "_chans"
         
         if self.train_config["punish"]:
-            savedir += "_punish"+ "_"+ str(self.train_config["punish"])
+            savedir += "punish"+ "_"+ str(self.train_config["punish"])
 
         iter = 0
         while os.path.exists(savedir +"_" + str(iter)):
@@ -87,15 +93,16 @@ class LegoModelPiecewise(BaseModel):
         print(self.log_path)
         print(self.animations_path.split("/")[-2])
         if not os.path.exists(self.log_path):
-            os.mkdir(self.log_path)
+            os.makedirs(self.log_path)
         else:
             shutil.rmtree(self.log_path)
 
-        self.saved_model_path = self.animations_path +"/model/"
+        self.saved_model_path = self.animations_path +"model/"
 
         self.model = None
         self.device = ut.get_device()
         self.env = DummyVecEnv([lambda: LegoPCGEnv3DPiecewise(self.train_config, self.animations_path, model=self)])
+        self.inference = False
 
         #check_env(self.env)
 
@@ -104,6 +111,43 @@ class LegoModelPiecewise(BaseModel):
             self.build()
         else:
             self.load_model()
+
+
+    def test(self, savedir):
+        self.animations_path = savedir
+        if not os.path.exists(savedir):
+            os.makedirs(savedir)
+
+        ut.save_arrangement(
+                            self.env.envs[0].rep.blocks, 
+                            savedir, 
+                            0, 
+                            None, 
+                            self.env.envs[0].reward_history,
+                            render = True,
+                        )
+
+        for i in range(10):
+            self.env.envs[0].rep.update([1,1])
+            ut.save_arrangement(
+                            self.env.envs[0].rep.blocks, 
+                            savedir, 
+                            i+1, 
+                            None, 
+                            self.env.envs[0].reward_history,
+                            render = True,
+                        )
+            
+        for i in range(10, 400):
+            self.env.envs[0].rep.update([0,0])
+            ut.save_arrangement(
+                            self.env.envs[0].rep.blocks, 
+                            savedir, 
+                            i+1, 
+                            None, 
+                            self.env.envs[0].reward_history,
+                            render = True,
+                        )
     
     def load_data(self):
         """
@@ -145,33 +189,116 @@ class LegoModelPiecewise(BaseModel):
 
         self.model = PPO.load(self.saved_model_path)
 
-    def run_inference(self):
-        #set the save directory
+    def get_noncontrollable_results(self,path):
         episodes = 10
         with torch.no_grad():
+            heights = []
             for ep in range(episodes):
-                save_path = self.saved_model_path + "inference/"+str(ep)
-                os.makedirs(save_path)
                 curr_obs = self.env.reset()
-                curr_step_num = 0 
+                done = False 
 
-                done = False
                 while not done:
                     action, _ = self.model.predict(curr_obs)
-                    curr_obs, _, is_finished, info = self.env.step(action) 
+                    curr_obs, _, done, info = self.env.step(action) 
 
-                    curr_step_num += 1
+                            
+                heights.append([self.env.envs[0].reward_history[-1]])
+            
+            print(heights)
+            with open(path + "results.csv", "w") as f:
+                wr = csv.writer(f)
+                wr.writerows(heights)
 
-                    ut.save_arrangement(
-                        self.env.envs[0].rep.blocks, 
-                        save_path, 
-                        curr_step_num, 
-                        None, 
-                        self.env.envs[0].reward_history,
-                        render = True)
+
+    def get_controllable_results(self, path):
+        print(path)
+
+        episodes = 5
+        heights = []
+        with torch.no_grad():
+            for x in range(15):
+                row_heights = []
+                for y in range(15):
+                    print(x,y)
+                    episode_heights =[]
+                    for ep in range(episodes):
+                        curr_obs = self.env.reset()
+                        self.env.envs[0].rep.goal = [x,y]
+                        done = False 
+
+                        while not done:
+                            action, _ = self.model.predict(curr_obs)
+                            curr_obs, _, done, info = self.env.step(action) 
+
+                            
+                        episode_heights.append(self.env.envs[0].reward_history[-1])
+                    print(episode_heights)
+                    row_heights.append(sum(episode_heights)/len(episode_heights))
                     
-                ut.animate(save_path)
-                print(self.env.envs[0].reward_history)
+                heights.append(row_heights)
+        
+        import csv
+        with open(path + "controllable_results.csv", "w") as f:
+            wr = csv.writer(f)
+            wr.writerows(heights)
+
+    def run_inference(self):
+        episodes = 5
+        self.inference = True
+        with torch.no_grad():
+            print("model line 152: " + self.saved_model_path)
+            print(os.listdir(self.saved_model_path))
+            for model_file in os.listdir(self.saved_model_path):
+                #if model_file == "0.zip" or model_file == '3704.zip' or model_file == "3300.zip":
+                #    continue
+                if model_file.split(".")[-1]!="zip":
+                    continue
+                if model_file != "136.zip":
+                    continue
+                self.model = PPO.load(self.saved_model_path + model_file)
+                if not os.path.exists(self.saved_model_path + model_file.split(".")[0]+"/"):
+                    os.mkdir(self.saved_model_path + model_file.split(".")[0]+"/")
+                
+                
+                for ep in range(episodes):
+                    save_path = self.saved_model_path + model_file.split(".")[0]+"/"+str(ep)+"/"
+                    os.makedirs(save_path)
+                    curr_obs = self.env.reset()
+                    
+                    curr_step_num = 0 
+
+                    done = False 
+
+                    while not done:
+                        action, _ = self.model.predict(curr_obs)
+                        curr_obs, _, done, info = self.env.step(action) 
+
+                        curr_step_num += 1
+                        try: 
+                            rep_goal = self.env.envs[0].rep.goal
+                        except:
+                            rep_goal = None
+                        ut.save_arrangement(
+                            self.env.envs[0].rep.blocks, 
+                            save_path, 
+                            curr_step_num, 
+                            None, 
+                            self.env.envs[0].reward_history,
+                            render = True,
+                            goal = rep_goal#self.env.envs[0].rep.goal
+                        )
+                        
+                    ut.animate(save_path)
+                    print(self.env.envs[0].reward_history)
+                
+                
+                if "controllable" in self.saved_model_path:
+                    self.get_controllable_results(self.saved_model_path + model_file.split(".")[0]+"/")
+
+                else:
+                    self.get_noncontrollable_results(self.saved_model_path + model_file.split(".")[0]+"/")
+
+        self.inference = False
 
     def train(self):
         # will be moved to executor once callbacks are in place 

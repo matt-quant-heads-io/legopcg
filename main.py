@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import configs
 import model as models
@@ -19,11 +20,12 @@ def get_args():
     argument_parser.add_argument('--reward_param', type = str, required = False)
     argument_parser.add_argument('--controllable', required = False, action='store_true')
     argument_parser.add_argument('--model_name', type=str, required=False)
+    argument_parser.add_argument('--action_space', type=str, required=False, choices = ["fixed", "relative"])
 
     return argument_parser.parse_args()
 
 
-def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_ep = None, observation_size = None, punish = None, reward_param = None, controllable=False, model_name=False):
+def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_ep = None, observation_size = None, punish = None, reward_param = None, controllable=False, model_name=None, action_space = None):
     config = configs.CONFIGS_MAP[config_id]
 
     if num_blocks != None:
@@ -38,6 +40,8 @@ def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_e
         config['train']['reward_param'] = reward_param
     if controllable:
         config['train']['controllable'] = True
+    if action_space != None:
+        config['train']['action_space'] = action_space + "_position"
     if model_name is not None:
         model_name_list = model_name.split("_")
         if model_name_list[0] == 'controllable':
@@ -47,7 +51,7 @@ def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_e
             config['train']['reps_per_episode'] = int(model_name_list[6])
             config['train']['num_of_blocks'] = int(model_name_list[10])
             config['train']['cnn_output_channels'] = int(model_name_list[14])
-            config['train']['punish'] = int(model_name_list[-2])
+            config['train']['punish'] = float(model_name_list[-2])
         else:
             config['train']['controllable'] = False
             config['model']['features_extractor'] =  model_name_list[2]
@@ -55,7 +59,7 @@ def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_e
             config['train']['reps_per_episode'] = int(model_name_list[5])
             config['train']['num_of_blocks'] = int(model_name_list[9])
             config['train']['cnn_output_channels'] = int(model_name_list[13])
-            config['train']['punish'] = int(model_name_list[-2])
+            config['train']['punish'] = float(model_name_list[-2])
 
 #controllan_26_passes_5200000_ts_20_blocks_31_obs_48_chans_punish_0.035_1
     model = models.MODELS_MAP[model_id](config)
@@ -68,16 +72,18 @@ def run(mode, config_id, model_id, gen_train_data, num_blocks = None, reps_per_e
             model_path = model.saved_model_path.split("/")
             model_path[-3] = model_name
             model.saved_model_path = "/".join(model_path)
-            model.load()
+            #to do: implement and load model
+            print("training for saved models not implemented.")
+            quit()
         model.train()
     else:
         if model_name == None:
             print("Running inference requires argument passed for --model_name.")
             quit()
+        os.rmdir(model.animations_path)
         model_path = model.saved_model_path.split("/")
         model_path[-3] = model_name
-        model.saved_model_path = "/".join(model_path)
-        model.load()
+        model.saved_model_path = "/".join(model_path)   
         model.run_inference()
 
 
@@ -93,5 +99,7 @@ if __name__ == "__main__":
         args.observation_size,
         args.punish,
         args.reward_param,
-        args.controllable
+        args.controllable,
+        args.model_name,
+        args.action_space
     )

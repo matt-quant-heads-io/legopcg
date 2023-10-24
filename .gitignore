@@ -131,6 +131,7 @@ dmypy.json
 
 # avoid loading heavy files 
 logs
+tb_logs
 saved_models
 run.txt
 

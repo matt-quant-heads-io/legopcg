@@ -37,6 +37,12 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         self.last_blocks = []
         self.model=model
 
+        self.action_history = []
+        self.action_count = 0
+
+
+        self.obs = None
+
     """
     def seed(self, seed=None):
         seed = self.rep.seed(seed)
@@ -49,16 +55,20 @@ class LegoPCGEnv3DPiecewise(gym.Env):
 
         self.reward_history.append(self.rep.get_reward())
     
-        if self._episode % 250 == 0 or self.reward_history[-1] >= max(self.reward_history[:-1]) and self._episode > 20 and self.reward_history[-1] > 0:
-            ut.save_arrangement(self.rep.blocks, self.savedir + "training_imgs" + "/", self._episode, self.reward_history[-1], rewards = self.reward_history, render = True, goal = self.rep.last_goal)   
-            for i, blocks in enumerate(self.current_blocks):
-                ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode) +"/", i, curr_reward = None, render = True, goal = self.rep.last_goal)
-                if i == len(self.current_blocks)-1:
-                    ut.animate(self.savedir + "training_imgs/", self._episode)
+        if not self.model.inference:
+            if self._episode >= 2:
+            #if self._episode % 250 == 0 or self.reward_history[-1] >= max(self.reward_history[:-1]) and self._episode > 20 and self.reward_history[-1] > 0:
+                ut.save_arrangement(self.rep.blocks, self.savedir + "training_imgs" + "/", self._episode, self.reward_history[-1], rewards = self.reward_history, render = True, goal = self.rep.last_goal)   
+                for i, blocks in enumerate(self.current_blocks):
+                    ut.save_arrangement(blocks, self.savedir + "training_imgs/" + str(self._episode) +"/", i, curr_reward = None, render = True, goal = self.rep.last_goal)
+                    if i == len(self.current_blocks)-1:
+                        ut.animate(self.savedir + "training_imgs/", self._episode)
 
-            if self.model != None and self.reward_history[-1] >= max(self.reward_history[:-1]):
-                self.model.model.save(self.model.saved_model_path + str(self._episode))
-        
+                if self.model != None and self.reward_history[-1] >= max(self.reward_history[:-1]):
+                    self.model.model.save(self.model.saved_model_path + str(self._episode))
+            
+
+
 
         """
         if len(self.reward_history) >1 and self.reward_history[-2]-self.reward_history[-1] >= 2:
@@ -85,6 +95,9 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         del self.current_blocks
         self.current_blocks = []
 
+        self.action_count = len(set(self.action_history))
+        self.action_history = []
+
         self.rep.reset()
         #self.prob.reset()
         self._changes = 0
@@ -95,13 +108,51 @@ class LegoPCGEnv3DPiecewise(gym.Env):
 
         return obs
     
+    def get_fake_model_action(self):
+        if self.obs == None:
+            return (1,1)
+        
+        max_height = 0
+        map = self.obs['map'] 
+        high_spots = []
+
+        for y in range(map.shape[1]-1, 0, -1):
+            coords = []
+            for x in range(map.shape[0]):
+                for z in range(map.shape[2]):
+                    if map[x,y,z] != 0 and  map[x,y,z] != -1: 
+                        max_height = y
+                        high_spots.append((x,z))
+            if max_height != 0:
+                move = high_spots[0]
+                if move[0] < (self.rep.max_x-1)/2:
+                    x = 0
+                elif move[0] == (self.rep.max_x-1)/2:
+                    x=1
+                else: 
+                    x = 2
+                
+                if move[1] < (self.rep.max_y-1)/2:
+                    y = 0
+                elif move[1] == (self.rep.max_y-1)/2:
+                    y=1
+                else: 
+                    y = 2
+                return(x,y)
+
+            
+        
+        
+
     def step(self, action):
         #ut.save_arrangement(self.rep.blocks, self.savedir + str(self._episode) + "/", self._step, self.reward_history[-1], render = True)
+
+        action = self.get_fake_model_action()
 
         #self._iteration += 1
         #self._iterations_total += 1
         self._step += 1
-
+        self.action_history.append((action[0], action[1]))
         # update the current state to the new state based on the taken action
         self.rep.update(action)
         self.current_blocks.append(copy.deepcopy(self.rep.blocks))
@@ -123,10 +174,14 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         
 
         #reward = max(reward, 0)
+        if self.rep.controllable:
+            reward_target = 13
+        else:
+            reward_target = 19
 
-        done = self.prob.get_episode_over(new_stats, self._episode, self.num_of_blocks, self.steps_per_episode)
+        done = self.prob.get_episode_over(new_stats, self._episode, self.num_of_blocks, self.steps_per_episode, curr_reward = self.rep.curr_reward, reward_target = reward_target)
 
-        
+
 
         info = {}
         info['solved'] = done
@@ -140,6 +195,8 @@ class LegoPCGEnv3DPiecewise(gym.Env):
         observation = self.rep.get_observation()
         #print(self._step)
     
+
+        self.obs = observation
         return observation, reward, done, info
         
 

@@ -15,6 +15,7 @@ class LegoProblemPiecewise(LegoProblem):
         super().__init__()
         self.total_reward = 0 
         self.reward_history = []
+        self.reward_param = None
 
     def get_tile_types(self):
         pass 
@@ -31,23 +32,28 @@ class LegoProblemPiecewise(LegoProblem):
         #    reward = -0.5
         #else:
         #    reward = new_stats[reward_param] - old_stats[reward_param]
-
+        self.reward_param = reward_param
         reward = new_stats[reward_param] - old_stats[reward_param]
         # Print Reward graph -> Accumulate rewards
         # print("Reward: ", reward)
         self.total_reward += reward
 
-        return reward
+        return max(reward, 0-3)
     
-    def get_episode_over(self, new_stats, episode, num_blocks, steps_per_ep = None):    
+    def get_episode_over(self, new_stats, episode, num_blocks, steps_per_ep = None, curr_reward = None, reward_target = 14):    
         
         if steps_per_ep == None:
             steps_per_ep = math.sqrt(episode) * num_blocks
             #steps_per_ep = episode//4
     
         #print(steps_per_ep)
-
-        if new_stats['step'] >=  steps_per_ep:
+        
+        #print(reward_target)
+        #print(curr_reward)
+        #if not controllable, then 20
+        if (new_stats['step'] >=  steps_per_ep) or (curr_reward >= reward_target):
+            if (curr_reward >= reward_target):
+                print(self.total_reward)
             # print("episode over: ", representation.num_of_bricks)
             # print("episode over: ", np.count_nonzero(representation._map))
             # print("Total reward: ",  self.total_reward)

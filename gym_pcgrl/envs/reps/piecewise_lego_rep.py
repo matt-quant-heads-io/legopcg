@@ -37,6 +37,9 @@ class LegoBlock():
         self.last_x = self.x
         self.last_y = self.y
         self.last_z = self.z
+
+        self.true_x = self.x
+        self.true_z = self.z
         
 
     def place(self):
@@ -48,16 +51,19 @@ class LegoBlock():
             self.y = self.rep.max_y-self.dims[1]
             self.z = random.randrange(self.dims[2]-1, self.rep.max_z-self.dims[2]+1)
 
-            self.next_x = self.x
-            self.next_y = self.y
-            self.next_z = self.z
+        self.next_x = self.x
+        self.next_y = self.y
+        self.next_z = self.z
 
-            self.last_x = self.x
-            self.last_y = self.y
-            self.last_z = self.z
+        self.last_x = self.x
+        self.last_y = self.y
+        self.last_z = self.z
 
         #fall to floor
         self._fall()
+    
+        self.true_x = self.x
+        self.true_z = self.z
 
         
         
@@ -123,7 +129,16 @@ class PiecewiseRepresentation(Representation3D):
         
         for i in range(2,self.num_of_blocks):
 
-            blockname = ut.onehot_index_to_str_map[random.randint(1, 3)]
+            #blockname = ut.onehot_index_to_str_map[random.randint(1, 3)]
+            
+            if i < self.num_of_blocks//4:
+                blockname = "3003"
+            elif i < 2*self.num_of_blocks//4:
+                blockname = "3004"
+            else: 
+                blockname = "3005"
+            
+            
             block = LegoBlock(blockname, self, i)
             self.blocks.append(block)
             block.place()
@@ -141,18 +156,18 @@ class PiecewiseRepresentation(Representation3D):
         self.step_count = 0
         self.episode = 0
     
+        self.rotation = 3
 
-        
+  
 
-        
     def reset(self):
         # Reset all internal data structures being used
-
+        
 
         self.final_map = np.copy(self._map)
         #super().reset(height, width, depth)
 
-        if self.controllable and self.episode%10 == 0:
+        if self.controllable:
             self.last_goal = [x for x in self.goal]
             self.goal = [random.randrange(self.max_x), random.randrange(self.max_z)]
         self.full_map= self.get_full_map()
@@ -166,15 +181,14 @@ class PiecewiseRepresentation(Representation3D):
         
         for i in range(2,self.num_of_blocks):
 
-            blockname = ut.onehot_index_to_str_map[random.randint(1, 3)]
-            """
+            
             if i < self.num_of_blocks//4:
                 blockname = "3003"
             elif i < 2*self.num_of_blocks//4:
                 blockname = "3004"
             else: 
                 blockname = "3005"
-            """
+            
             block = LegoBlock(blockname, self, i)
             self.blocks.append(block)
             block.place()
@@ -192,10 +206,69 @@ class PiecewiseRepresentation(Representation3D):
         if self.controllable:
             self.goal = (random.randrange(self.max_x), random.randrange(self.max_z))
 
+        self.rotation = 3
+
+        return self._map
+    
+    def rotate_board(self, direction = None):
+
+        #get the new true position by rotating it back
+        for block in self.blocks:
+            
+            if self.rotation == 0:
+                new_x = self.max_x - block.dims[0] - block.x
+                new_z = self.max_z - block.dims[2] - block.z
+            elif self.rotation == 1:
+                new_x = block.x
+                new_z = self.max_z - block.dims[2] - block.z
+            elif self.rotation == 2:
+                new_x = self.max_x - block.dims[0] - block.x
+                new_z = block.z
+            elif self.rotation == 3:
+                new_x = block.x
+                new_z = block.z
+                
+            block.true_x = new_x
+            block.true_z = new_z
+        
+
+        if direction == None: 
+            direction = random.randrange(4)
+            #direction = 3
+            
+
+        self.rotation = direction
+        
+        #get the new rotated position
+        for block in self.blocks:
+            
+            if direction == 0:
+                new_x = self.max_x - block.dims[0] - block.x
+                new_z = self.max_z - block.dims[2] - block.z
+            elif direction == 1:
+                new_x = block.x
+                new_z = self.max_z - block.dims[2] - block.z
+            elif direction == 2:
+                new_x = self.max_x - block.dims[0] - block.x
+                new_z = block.z
+            elif direction == 3:
+                new_x = block.x
+                new_z = block.z
+                
+                
+            block.x = new_x
+            block.z = new_z
+
+            block.next_x = block.x
+            block.next_z = block.z
+
         
         
 
-        return self._map
+
+
+        
+            #TO DO: FIX ANIMATION            
 
     def get_action_space(self):
         """
@@ -220,7 +293,8 @@ class PiecewiseRepresentation(Representation3D):
 
         #map_obs = spaces.Box(low = -2, high = 5, shape = (self.observation_size, self.observation_size, self.observation_size, 8), dtype = np.uint8)
         if self.action_space == "relative_position" or self.action_space == "one_step":
-            map_obs = spaces.Box(low = 0, high = 1, shape = (2+len(ut.onehot_index_to_str_map), self.observation_size, self.observation_size*3-2, self.observation_size), dtype = np.uint8)
+            #map_obs = spaces.Box(low = 0, high = 1, shape = (2+len(ut.onehot_index_to_str_map), self.observation_size, self.observation_size*3-2, self.observation_size), dtype = np.uint8)
+            map_obs = spaces.Box(low = -2, high = 5, shape = (self.observation_size, self.observation_size*3-2, self.observation_size), dtype = np.uint8)
         elif self.action_space == "fixed_position":
             map_obs = spaces.Box(low = 0, high = 1, shape = (2+len(ut.onehot_index_to_str_map), self.max_x, self.max_y, self.max_z), dtype = np.uint8)
 
@@ -275,7 +349,14 @@ class PiecewiseRepresentation(Representation3D):
             for i in range(block.dims[0]):
                 for j in range(block.dims[1]):
                     for k in range(block.dims[2]):
-                        map[block.x + i, block.y + j, block.z + k] = block.block_num
+                        try:
+                            map[block.x + i, block.y + j, block.z + k] = block.block_num
+                        except: 
+                            print(self.direction)
+                            print(block.dims)
+                            print(block.x, block.z)
+                            print("last_pos ", block.last_x, block.last_z)
+                            quit()
 
         
         curr_block = self.blocks[self.curr_block]
@@ -284,8 +365,14 @@ class PiecewiseRepresentation(Representation3D):
         for i in range(curr_block.dims[0]):
             for j in range(curr_block.dims[1]):
                 for k in range(curr_block.dims[2]):
-                    map[curr_block.x + i, curr_block.y + j, curr_block.z + k] = -2
-
+                    try:
+                        map[curr_block.x + i, curr_block.y + j, curr_block.z + k] = -2
+                    except: 
+                            print(self.direction)
+                            print(curr_block.dims)
+                            print(curr_block.x, block.z)
+                            print("last_pos ", curr_block.last_x, curr_block.last_z)
+                            quit()
 
         return map
     
@@ -302,12 +389,19 @@ class PiecewiseRepresentation(Representation3D):
         for i in range(curr_block.dims[0]):
                 for j in range(curr_block.dims[1]):
                     for k in range(curr_block.dims[2]):
-                        obs[curr_block.x + i, curr_block.y + j, curr_block.z + k] = -2
+                        try:
+                            obs[curr_block.x + i, curr_block.y + j, curr_block.z + k] = -2
+                        except: 
+                            print(self.direction)
+                            print(curr_block.dims)
+                            print(curr_block.x, curr_block.z)
+                            print("last_pos ", curr_block.last_x, curr_block.last_z)
+                            quit()
         
         
         obs_offset = self.observation_size//2
         curr_block = self.blocks[self.curr_block]
-        #obs[curr_block.x, curr_block.yf, curr_block.z] = 5
+
         x_start = curr_block.x - obs_offset
         x_end = curr_block.x + obs_offset
         y_start = curr_block.y - obs_offset*3
@@ -359,6 +453,7 @@ class PiecewiseRepresentation(Representation3D):
     
         assert obs.shape == (self.observation_size, self.observation_size*3-2, self.observation_size)
 
+        return obs
         #use below for one hot
         obs = obs +2
         onehot_obs = np.eye(len(ut.onehot_index_to_str_map)+2)[obs.astype(int)]#np.zeros((obs.shape[0], obs.shape[1], obs.shape[2], len()), type = float)
@@ -396,24 +491,28 @@ class PiecewiseRepresentation(Representation3D):
     
     def _end_update(self):
             #self.punish = True
+            self.curr_block = (self.curr_block + 1) % self.num_of_blocks
             self._last_map = np.copy(self._map)
+            
+            self._last_map = np.copy(self._map)
+
+            #self.rotate_board()
+
             for block in self.blocks:
                 block.next_x = block.x
                 block.next_y = block.y
                 block.next_z = block.z
-            
-            self.curr_block = (self.curr_block + 1) % self.num_of_blocks
-            self._last_map = np.copy(self._map)
             self._map = self.get_map()
             self.full_map = self.get_full_map()
 
             return
     
     def update(self, action):
-        
         """
             Take action, determine whether to reward or punish the action. 
-        """                                  
+        """    
+
+
         self.step += 1
         self.punish_sum = 0
 
@@ -423,53 +522,57 @@ class PiecewiseRepresentation(Representation3D):
             block.error = None
         self.blocks[self.curr_block].is_curr_block= True
 
+
         next_block = (self.curr_block + 1) % self.num_of_blocks
         self.blocks[next_block].is_next_block = True
-        
+
         self.full_map = self.get_full_map()
+        
+        
         #TODO: add rotation component
         self._set_next_state(action)
-        
-        
+        """
         if self.blocks[self.curr_block].next_x == self.blocks[self.curr_block].x and self.blocks[self.curr_block].next_z == self.blocks[self.curr_block].z:# and self.blocks[self.curr_block].next_z == self.blocks[self.curr_block].z:
             self.punish_sum += self.punish
-            self.blocks[self.curr_block].error = "stay" #orange
+            #self.blocks[self.curr_block].error = "stay" #orange
+            #print("stay")
             self._end_update()
-
+        """
         if not self._is_in_bounds(self.curr_block):
             self.punish_sum += self.punish
             self.blocks[self.curr_block].error = "bounds" #purple
+            #print("bounds")
             self._end_update()
             return
-
+        
         if self._is_overlap():
             self.punish_sum += self.punish
             self.blocks[self.curr_block].error = "overlap" #blue
             self._end_update()
             return
-
-        #if there is no block underneath, move down
-        while (not self._is_connected(self.curr_block)):
-            self.blocks[self.curr_block].next_y -= 1
-            self._move_to_state(self.curr_block)
-            
+        
         self._move_to_state(self.curr_block)
-            
+        #if there is no block underneath, move down
         while not self._all_connected():
             self._all_blocks_fall()
 
+        self._move_to_state(self.curr_block)
 
-          
+        #if self.blocks[self.curr_block].error == "overlap":
+            #ut.save_arrangement(blocks = self.blocks, dir_path = '/home/maria/dev/lego/legopcg/logs/test/', curr_step_num=self.step_count, curr_reward = self.overlap_ctr, render=True)            
+            
+        #ut.save_arrangement(self.blocks, '/home/maria/dev/lego/legopcg/logs/', 0, ut.LegoDimsDict, self.get_reward())
         self._end_update()
         return
         
     def _all_blocks_fall(self):
+        blockslist = sorted([(self.blocks[i].y, i)  for i in range(len(self.blocks))])
         while not self._all_connected():
             self.full_map = self.get_full_map()
-            for block_num in range(len(self.blocks)):
-                while (not self._is_connected(block_num)):
+            for _, idx in blockslist:
+                while (not self._is_connected(idx)):
                     self.full_map = self.get_full_map()
-                    self.blocks[block_num].y -= 1
+                    self.blocks[idx].y -= 1
                             
 
     def _all_connected(self):
@@ -568,7 +671,8 @@ class PiecewiseRepresentation(Representation3D):
         if self.action_space == "one_step":
             #none = 0, left = 1 , right= 2, forward = 3, backward = 4
             if action == 0:
-                pass
+                curr_block.error = "stay"
+                return
             elif action == 1:
                 curr_block.next_z = curr_block.z - 1#max(curr_block.z - 1, 0)
             elif action == 2:
@@ -589,6 +693,10 @@ class PiecewiseRepresentation(Representation3D):
             move_z = action[1] - 1
             next_z = curr_block.z + move_z
 
+            if move_z == 0 and move_x == 0:
+                curr_block.error = "stay"
+                return
+
             curr_block.next_x = next_x#max(min(self.max_x-1, next_x), 0)
             curr_block.next_z = next_z#max(min(self.max_z-1, next_z), 0)
             curr_block.next_y = self.max_y-curr_block.dims[1]
@@ -598,6 +706,9 @@ class PiecewiseRepresentation(Representation3D):
         elif self.action_space == "fixed_position":
 
             
+            if curr_block.z == action[1] and curr_block.x == action[0]:
+                curr_block.error = "stay"
+                return
             curr_block.next_x = action[0]#max(min(self.max_x-1, next_x), 0)
             curr_block.next_z = action[1]#max(min(self.max_z-1, next_z), 0)
             curr_block.next_y = self.max_y-curr_block.dims[1]
