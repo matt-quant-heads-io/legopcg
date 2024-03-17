@@ -139,3 +139,7 @@ animate_hpc_op.py
 test.py
 
 data/trajectories/*
+*-COMMENTS.ipynb
+test_open3d.py
+scratch_wfc_common.py
+scratch_wfc.py

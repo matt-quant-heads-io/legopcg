@@ -1,11 +1,12 @@
-# import os 
+# import os
 # from stable_baselines3 import PPO
 # from stable_baselines3.common.env_util import DummyVecEnv
 from typing import Callable, Dict, Tuple
-import numpy as np 
-# import os 
+import numpy as np
+
+# import os
 import sys
-import torch as th 
+import torch as th
 import torch.nn as nn
 from stable_baselines3.common.policies import ActorCriticPolicy
 
@@ -13,9 +14,10 @@ from gym import spaces
 
 # local imports
 from .ppo_model import PPOModel
-from utils import utils as ut 
-from gym_pcgrl.envs.pcgrl_env_3d import LegoPCGEnv3D
-from gym_pcgrl.wrappers import Cropped3D
+from utils import utils as ut
+from gym_envs.gym_pcgrl.envs.pcgrl_env_3d import LegoPCGEnv3D
+from gym_envs.gym_pcgrl.wrappers import Cropped3D
+
 
 class LegoNetwork(nn.Module):
     """
@@ -39,7 +41,7 @@ class LegoNetwork(nn.Module):
         # Save output dimensions, used to create the distributions
         self.latent_dim_pi = last_layer_dim_pi
         self.latent_dim_vf = last_layer_dim_vf
-        self.hidden_dim1 = feature_dim * 2 
+        self.hidden_dim1 = feature_dim * 2
         self.hidden_dim2 = last_layer_dim_pi * 2
 
         print("feature_dim: ", feature_dim)
@@ -50,29 +52,29 @@ class LegoNetwork(nn.Module):
 
         # Policy network
         self.policy_net = nn.Sequential(
-            nn.Linear(feature_dim, self.hidden_dim1), 
+            nn.Linear(feature_dim, self.hidden_dim1),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim1, self.hidden_dim1), 
+            nn.Linear(self.hidden_dim1, self.hidden_dim1),
             nn.ReLU(),
-            # nn.Linear(self.hidden_dim1, self.hidden_dim1), 
+            # nn.Linear(self.hidden_dim1, self.hidden_dim1),
             # nn.ReLU(),
-            nn.Linear(self.hidden_dim1, self.hidden_dim2), 
+            nn.Linear(self.hidden_dim1, self.hidden_dim2),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim2, last_layer_dim_pi), 
-            nn.ReLU()
+            nn.Linear(self.hidden_dim2, last_layer_dim_pi),
+            nn.ReLU(),
         )
         # Value network
         self.value_net = nn.Sequential(
-            nn.Linear(feature_dim, self.hidden_dim1), 
+            nn.Linear(feature_dim, self.hidden_dim1),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim1, self.hidden_dim1), 
+            nn.Linear(self.hidden_dim1, self.hidden_dim1),
             nn.ReLU(),
-            # nn.Linear(self.hidden_dim1, self.hidden_dim1), 
+            # nn.Linear(self.hidden_dim1, self.hidden_dim1),
             # nn.ReLU(),
-            nn.Linear(self.hidden_dim1, self.hidden_dim2), 
+            nn.Linear(self.hidden_dim1, self.hidden_dim2),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim2, last_layer_dim_vf), 
-            nn.ReLU()
+            nn.Linear(self.hidden_dim2, last_layer_dim_vf),
+            nn.ReLU(),
         )
 
     def forward(self, features: th.Tensor) -> Tuple[th.Tensor, th.Tensor]:
@@ -114,9 +116,9 @@ class LegoActorCriticPolicy(ActorCriticPolicy):
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = LegoNetwork(self.features_dim)
 
-class LegoModel3D(PPOModel):
 
-    def __init__(self, cfg : Dict, mode="train"):
+class LegoModel3D(PPOModel):
+    def __init__(self, cfg: Dict, mode="train"):
 
         super().__init__(cfg)
 
@@ -124,14 +126,14 @@ class LegoModel3D(PPOModel):
 
         self.env = self.get_vector_env(self._make_env)
 
-        # override policy value 
+        # override policy value
         self.policy = LegoActorCriticPolicy
         # train or load a trained model
         if mode == "train":
             self.build()
         else:
             self.load_model()
-    
+
     def _make_env(self):
         def thunk():
             # env = gym.make(env_id)
@@ -151,37 +153,36 @@ class LegoModel3D(PPOModel):
         return thunk
 
     def evaluate(self):
-        # will be moved to evaluator later 
+        # will be moved to evaluator later
         # self.model = self.load_model()
         ut.cleanup_dir(self.animations_path)
         curr_obs = self.env.reset()
         # lego_block_coords = []
 
-        curr_step_num = 0 
+        curr_step_num = 0
         envs_not_processed = [True for _ in range(self.env.num_envs)]
 
         while any(envs_not_processed):
             action, _ = self.model.predict(curr_obs)
-            curr_obs, _, is_finished, info = self.env.step(action) 
+            curr_obs, _, is_finished, info = self.env.step(action)
 
             curr_step_num += 1
 
             for env_num, info_dict in enumerate(info):
                 # generate files for leocad rendering
-                if info_dict["brick_added"] and envs_not_processed[env_num]: 
-                    ut.render_in_leocad(self.animations_path,
-                                        env_num, 
-                                        info_dict["brick_details"])
+                if info_dict["brick_added"] and envs_not_processed[env_num]:
+                    ut.render_in_leocad(
+                        self.animations_path, env_num, info_dict["brick_details"]
+                    )
 
                 # if is_finished[env_num]:
                 if info_dict["num_of_bricks"] <= 0 and envs_not_processed[env_num]:
                     # print("Writing ldr")
                     envs_not_processed[env_num] = False
                     # write for the environment which is finished
-                    # self._write_ldr(env_num, 
-                    #                 self.env.envs[env_num].rep.final_map, 
+                    # self._write_ldr(env_num,
+                    #                 self.env.envs[env_num].rep.final_map,
                     #                 )
-                    
 
                 elif curr_step_num > 70000:
                     print("Long loop")
@@ -193,11 +194,10 @@ class LegoModel3D(PPOModel):
 
                     return
 
-        # ut.create_gif(self.animations_path)            
-    
-    def _write_ldr(self, i : int, env_map):
+        # ut.create_gif(self.animations_path)
+
+    def _write_ldr(self, i: int, env_map):
         if isinstance(env_map, np.ndarray):
-            ut.write_curr_obs_to_dir_path(env_map, 
-                            self.animations_path, 
-                            f"env_{i}",
-                            self.lego_blocks_dims_dict)
+            ut.write_curr_obs_to_dir_path(
+                env_map, self.animations_path, f"env_{i}", self.lego_blocks_dims_dict
+            )

@@ -33,7 +33,7 @@ import os
 import re
 import glob
 import numpy as np
-from gym_pcgrl import wrappers
+from gym_envs.gym_pcgrl import wrappers
 
 import tensorflow.keras.backend as K
 
